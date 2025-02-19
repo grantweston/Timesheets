@@ -1,26 +1,29 @@
 "use client"
 
-import * as React from "react"
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { ReactNode, useEffect, useState } from "react"
 
 interface AnimatedSectionProps {
-  children: React.ReactNode
-  className?: string
+  children: ReactNode
   delay?: number
 }
 
-export function AnimatedSection({
-  children,
-  className,
-  delay = 0,
-}: AnimatedSectionProps) {
+export function AnimatedSection({ children, delay = 0 }: AnimatedSectionProps) {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return <div>{children}</div>
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay }}
-      className={cn("w-full", className)}
+      transition={{ duration: 0.5, delay }}
     >
       {children}
     </motion.div>

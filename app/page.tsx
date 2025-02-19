@@ -2,11 +2,9 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Clock, FileText, Zap, CheckCircle2, ArrowUpRight, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { SignInButton, SignUpButton, UserButton, auth } from "@clerk/nextjs"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { steps } from './onboarding/layout'
 import { AnimatedSection } from "./components/animated-section"
-import { OnboardingHeader } from "./components/onboarding-header"
+import { OnboardingStatus } from "./components/onboarding-status"
+import { OnboardingButton } from "./components/onboarding-button"
 
 const features = [
   {
@@ -21,28 +19,9 @@ const features = [
   }
 ]
 
-function getOnboardingProgress() {
-  if (typeof window === 'undefined') return { progress: 0, hasStarted: false, nextStep: '/onboarding/profile' }
-  
-  const savedProgress = localStorage.getItem('onboardingProgress')
-  if (!savedProgress) return { progress: 0, hasStarted: false, nextStep: '/onboarding/profile' }
-  
-  const { lastCompletedStep, completedSteps } = JSON.parse(savedProgress)
-  const progress = Math.round(((lastCompletedStep + 1) / steps.length) * 100)
-  return { 
-    progress,
-    hasStarted: true,
-    nextStep: steps[lastCompletedStep + 1]?.path ?? '/dashboard/overview'
-  }
-}
-
 export default async function Home() {
-  const { userId } = auth();
-  
-  // In a real app, fetch this from your API
-  const { progress, hasStarted, nextStep } = getOnboardingProgress()
-  const hasCompletedOnboarding = progress === 100
-  const isLoading = false
+  const session = await auth();
+  const userId = session?.userId;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -55,13 +34,7 @@ export default async function Home() {
           <div className="flex items-center gap-4">
             {userId ? (
               <>
-                {!hasCompletedOnboarding && hasStarted && (
-                  <OnboardingHeader 
-                    progress={progress} 
-                    isLoading={isLoading}
-                    nextStep={nextStep}
-                  />
-                )}
+                <OnboardingStatus />
                 <UserButton afterSignOutUrl="/" />
               </>
             ) : (
@@ -96,31 +69,8 @@ export default async function Home() {
                       Start Free Trial <ArrowRight className="h-4 w-4" />
                     </Button>
                   </SignUpButton>
-                ) : !hasCompletedOnboarding ? (
-                  <Button size="lg" className="gap-2" asChild disabled={isLoading}>
-                    <Link href={hasStarted ? nextStep : "/onboarding/profile"}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : hasStarted ? (
-                        <>
-                          Continue Setup <ArrowRight className="h-4 w-4" />
-                        </>
-                      ) : (
-                        <>
-                          Start Setup <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
-                    </Link>
-                  </Button>
                 ) : (
-                  <Button size="lg" className="gap-2" asChild>
-                    <Link href="/dashboard/overview">
-                      Open Dashboard <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                  <OnboardingButton />
                 )}
                 <Button variant="outline" size="lg" asChild>
                   <Link href="#features">See How It Works</Link>
@@ -174,5 +124,4 @@ export default async function Home() {
       </footer>
     </div>
   )
-}
-
+} 

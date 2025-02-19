@@ -180,11 +180,56 @@ export default function DesktopPage() {
         ))}
       </div>
 
-      {!isVerified && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            The desktop app is required to use TimeTrack AI. You cannot proceed without completing the installation.
+      {isDownloading && (
+        <Progress value={downloadProgress} className="w-full" />
+      )}
+
+      <div className="flex justify-center">
+        {currentStep === 0 && (
+          <Button onClick={handleDownload} disabled={isDownloading}>
+            {isDownloading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Downloading...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Download Desktop App
+              </>
+            )}
+          </Button>
+        )}
+        {currentStep === 1 && (
+          <Button onClick={generatePairingCode}>
+            I've installed the app
+          </Button>
+        )}
+        {currentStep === 2 && (
+          <Button onClick={verifyInstallation} disabled={isVerifying || isVerified}>
+            {isVerifying ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying...
+              </>
+            ) : isVerified ? (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Connected
+              </>
+            ) : (
+              "Connect"
+            )}
+          </Button>
+        )}
+      </div>
+
+      {pairingCode && (
+        <Alert>
+          <Monitor className="h-4 w-4" />
+          <AlertTitle>Enter this code in the desktop app</AlertTitle>
+          <AlertDescription className="font-mono text-lg">
+            {pairingCode}
           </AlertDescription>
         </Alert>
       )}

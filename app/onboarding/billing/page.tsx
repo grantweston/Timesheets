@@ -66,14 +66,6 @@ export default function BillingPage() {
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" asChild>
-              <Link href="/onboarding/profile">Back</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/onboarding/integrations">Continue</Link>
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>

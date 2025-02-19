@@ -3,11 +3,12 @@
 import type React from "react"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { Clock, ArrowLeft, User, CreditCard, Plug, Monitor, Check, ChevronRight } from "lucide-react"
+import { Clock, ArrowLeft, User, CreditCard, Plug, Monitor, Check, ChevronRight, FileText } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { useUser } from "@clerk/nextjs"
 
 export const steps = [
   {
@@ -32,6 +33,13 @@ export const steps = [
     icon: "Plug"
   },
   {
+    path: "/onboarding/engagement-letters",
+    title: "Engagement Letters",
+    description: "Upload any additional engagement letters",
+    required: false,
+    icon: "FileText"
+  },
+  {
     path: "/onboarding/non-billable",
     title: "Non-Billable Time",
     description: "Configure non-billable time tracking",
@@ -42,7 +50,7 @@ export const steps = [
     path: "/onboarding/desktop",
     title: "Desktop App",
     description: "Set up automatic time tracking",
-    required: true,
+    required: false,
     icon: "Monitor"
   }
 ]
@@ -54,6 +62,7 @@ export default function OnboardingLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { user } = useUser()
   const currentStepIndex = steps.findIndex(step => step.path === pathname)
   const progress = ((currentStepIndex + 1) / steps.length) * 100
   const currentStep = steps[currentStepIndex]
@@ -82,7 +91,21 @@ export default function OnboardingLayout({
     localStorage.getItem('onboardingProgress') || '{"completedSteps":[]}'
   ).completedSteps
 
-  const handleNext = () => {
+  const markOnboardingComplete = async () => {
+    try {
+      const response = await fetch('/api/complete-onboarding', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark onboarding as complete');
+      }
+    } catch (error) {
+      console.error('Error updating onboarding status:', error)
+    }
+  }
+
+  const handleNext = async () => {
     // Save progress before moving to next step
     const progress = JSON.parse(localStorage.getItem('onboardingProgress') || '{"lastCompletedStep":-1,"completedSteps":[]}')
     progress.lastCompletedStep = Math.max(currentStepIndex, progress.lastCompletedStep)
@@ -93,6 +116,7 @@ export default function OnboardingLayout({
       router.push(nextStep.path)
     } else {
       localStorage.removeItem('onboardingProgress') // Clear progress on completion
+      await markOnboardingComplete()
       router.push('/dashboard/overview')
     }
   }
@@ -105,7 +129,7 @@ export default function OnboardingLayout({
     }
   }
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     // Find next required step or finish
     const nextRequiredStep = steps.find((step, index) => 
       index > currentStepIndex && step.required
@@ -114,6 +138,8 @@ export default function OnboardingLayout({
     if (nextRequiredStep) {
       router.push(nextRequiredStep.path)
     } else {
+      localStorage.removeItem('onboardingProgress') // Clear progress since we're finishing
+      await markOnboardingComplete()
       router.push('/dashboard/overview')
     }
   }

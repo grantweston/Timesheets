@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@/components/scroll-area"
 import { Send, Check, Bot, User, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
@@ -16,11 +16,38 @@ interface Message {
   status: "sending" | "sent" | "delivered"
 }
 
+interface TimeBlock {
+  id: number
+  start: number
+  duration: number
+  title: string
+  client: string
+  billable: boolean
+  category: string
+  description: string[]
+  applications: string[]
+}
+
 const suggestions = [
   "I don't want to bill for lunch breaks",
   "Internal meetings should be non-billable",
   "Administrative work shouldn't be billed",
   "Don't bill for training time",
+]
+
+const initialTimeBlocks: TimeBlock[] = [
+  {
+    id: 1,
+    start: 9,
+    duration: 1,
+    title: "Example Block",
+    client: "",
+    billable: true,
+    category: "development",
+    description: ["Add work description"],
+    applications: [],
+  },
+  // More blocks...
 ]
 
 export function ChatInterface() {
@@ -39,7 +66,7 @@ export function ChatInterface() {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
-  const scrollToBottom = () => {
+  function scrollToBottom() {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
     }

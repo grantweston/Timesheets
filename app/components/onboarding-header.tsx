@@ -11,7 +11,7 @@ interface OnboardingHeaderProps {
   nextStep: string
 }
 
-export function OnboardingHeader({ progress, isLoading, nextStep }: OnboardingHeaderProps) {
+export function OnboardingProgress({ progress, isLoading, nextStep }: OnboardingHeaderProps) {
   return (
     <div className="flex items-center gap-2">
       <Progress value={progress} className="w-32 h-2" />
@@ -19,6 +19,15 @@ export function OnboardingHeader({ progress, isLoading, nextStep }: OnboardingHe
       <Button variant="outline" size="sm" asChild>
         <Link href={nextStep}>Continue Setup</Link>
       </Button>
+    </div>
+  )
+}
+
+export function OnboardingHeader() {
+  return (
+    <div className="space-y-2">
+      <h1 className="text-3xl font-bold">Welcome to TimeTrack AI</h1>
+      <p className="text-muted-foreground">Let's get you set up with your account</p>
     </div>
   )
 } 

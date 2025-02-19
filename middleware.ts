@@ -1,13 +1,14 @@
-import { authMiddleware, clerkClient } from "@clerk/nextjs";
+import { authMiddleware } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { clerkClient } from '@clerk/nextjs/server';
 
 // This example protects all routes including api/trpc routes
 // Please edit this to allow other routes to be public as needed.
 // See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your middleware
 export default authMiddleware({
   // Routes that can be accessed while signed out
-  publicRoutes: ["/", "/sign-in", "/sign-up"],
+  publicRoutes: ["/"],
   // Routes that can always be accessed, and have
   // no authentication information
   ignoredRoutes: ["/api/webhook"],
@@ -26,7 +27,7 @@ export default authMiddleware({
     if (req.nextUrl.pathname.startsWith('/dashboard')) {
       try {
         const user = await clerkClient.users.getUser(auth.userId);
-        const hasCompletedOnboarding = user.publicMetadata.hasCompletedOnboarding;
+        const hasCompletedOnboarding = user.unsafeMetadata.hasCompletedOnboarding;
 
         if (!hasCompletedOnboarding) {
           return NextResponse.redirect(new URL('/onboarding/desktop', req.url));
@@ -43,5 +44,5 @@ export default authMiddleware({
 
 // Stop Middleware running on static files and public folder
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
 }; 
