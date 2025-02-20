@@ -1,8 +1,8 @@
 import { UserButton } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/app/components/ui/button";
 import { Clock } from "lucide-react";
 import Link from "next/link";
-import { DashboardNav } from "@/components/dashboard-nav";
+import { DashboardNav } from "@/app/components/features/dashboard/dashboard-nav";
 
 export default function DashboardLayout({
   children,

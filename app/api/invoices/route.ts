@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
-import { getQuickBooksClient } from '@/lib/quickbooks';
+import { stripe } from '@/app/lib/stripe';
+import { getQuickBooksClient } from '@/app/lib/quickbooks';
 import { auth } from '@clerk/nextjs';
 
 // GET endpoint to fetch invoices

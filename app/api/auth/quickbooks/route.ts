@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { quickbooks } from '@/lib/quickbooks';
+import { quickbooks } from '@/app/lib/quickbooks';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);

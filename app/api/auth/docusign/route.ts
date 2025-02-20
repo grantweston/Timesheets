@@ -1,4 +1,4 @@
-import { getDocuSignAuthUrl } from "@/lib/oauth"
+import { getDocuSignAuthUrl } from "@/app/lib/oauth"
 import { NextResponse } from "next/server"
 
 export async function GET() {

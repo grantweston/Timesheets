@@ -1,13 +1,13 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/app/components/ui/button"
+import { Card } from "@/app/components/ui/card"
+import { useToast } from "@/app/components/ui/use-toast"
 import { useState } from "react"
 import { Loader2, Download, Monitor, CheckCircle2, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert"
+import { Progress } from "@/app/components/ui/progress"
 
 const steps = [
   {

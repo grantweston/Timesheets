@@ -1,7 +1,7 @@
-import { TimeGrid } from "@/components/time-grid"
-import { DatePickerWithRange } from "@/components/date-range-picker"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { TimeGrid } from "@/app/components/features/timesheet/time-grid"
+import { DatePickerWithRange } from "@/app/components/features/timesheet/date-range-picker"
+import { Button } from "@/app/components/ui/button"
+import { Card } from "@/app/components/ui/card"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 
 export default function TimesheetPage() {

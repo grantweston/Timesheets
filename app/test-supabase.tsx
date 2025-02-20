@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { Node, Edge } from 'reactflow';
 import { Info } from 'lucide-react';

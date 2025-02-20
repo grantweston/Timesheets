@@ -1,4 +1,4 @@
-import { exchangeCodeForTokens } from "@/lib/oauth"
+import { exchangeCodeForTokens } from "@/app/lib/oauth"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {

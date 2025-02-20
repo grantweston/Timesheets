@@ -1,9 +1,9 @@
 "use client"
 
-import { InvoiceList } from "@/components/invoice-list"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { InvoiceList } from "@/app/components/features/invoice/invoice-list"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs"
+import { Card } from "@/app/components/ui/card"
+import { Button } from "@/app/components/ui/button"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { OnboardingProgress } from "./onboarding-header"
-import { steps } from '../onboarding/layout'
+import { steps } from '@/app/lib/onboarding-steps'
 import { useEffect, useState } from 'react'
 
 interface OnboardingState {

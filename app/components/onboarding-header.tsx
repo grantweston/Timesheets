@@ -1,7 +1,7 @@
 "use client"
 
-import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
+import { Progress } from "@/app/components/ui/progress"
+import { Button } from "@/app/components/ui/button"
 import Link from "next/link"
 import { Clock } from "lucide-react"
 

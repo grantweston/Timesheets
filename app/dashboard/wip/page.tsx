@@ -1,7 +1,7 @@
-import { ProjectList } from "@/components/project-list"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { ProjectList } from "@/app/components/features/projects/project-list"
+import { Button } from "@/app/components/ui/button"
+import { Card } from "@/app/components/ui/card"
+import { Input } from "@/app/components/ui/input"
 import { Plus, Search } from "lucide-react"
 
 export default function WIPPage() {

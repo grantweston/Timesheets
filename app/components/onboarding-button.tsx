@@ -1,9 +1,9 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/app/components/ui/button"
 import { ArrowRight, ArrowUpRight, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { steps } from '../onboarding/layout'
+import { steps } from '@/app/lib/onboarding-steps'
 
 function getOnboardingProgress() {
   if (typeof window === 'undefined') return { progress: 0, hasStarted: false, nextStep: '/onboarding/profile' }

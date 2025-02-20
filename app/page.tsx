@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/app/components/ui/button"
 import { ArrowRight, Clock, FileText, Zap, CheckCircle2, ArrowUpRight, Loader2, BarChart2, Brain, Shield, Users, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { SignInButton, SignUpButton, UserButton, auth } from "@clerk/nextjs"
@@ -82,8 +82,7 @@ const plans = [
 ]
 
 export default async function Home() {
-  const session = await auth();
-  const userId = session?.userId;
+  const { userId } = await auth();
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 dark:from-background dark:via-background/95 dark:to-background/90">

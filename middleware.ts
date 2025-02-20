@@ -26,8 +26,13 @@ export default authMiddleware({
     // Only check onboarding status for dashboard routes
     if (req.nextUrl.pathname.startsWith('/dashboard')) {
       try {
-        const user = await clerkClient.users.getUser(auth.userId);
-        const hasCompletedOnboarding = user.unsafeMetadata.hasCompletedOnboarding;
+        const response = await fetch(`${process.env.NEXT_PUBLIC_CLERK_FRONTEND_API}/users/${auth.userId}`, {
+          headers: {
+            Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+          },
+        });
+        const user = await response.json();
+        const hasCompletedOnboarding = user.unsafe_metadata?.hasCompletedOnboarding;
 
         if (!hasCompletedOnboarding) {
           return NextResponse.redirect(new URL('/onboarding/desktop', req.url));
@@ -44,5 +49,12 @@ export default authMiddleware({
 
 // Stop Middleware running on static files and public folder
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    // Exclude files with extensions like images, videos, fonts, etc.
+    "/((?!.*\\.[\\w]+$|_next).*)",
+    // Include root route
+    "/",
+    // Include /api routes
+    "/(api|trpc)(.*)"
+  ]
 }; 
