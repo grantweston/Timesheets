@@ -1,0 +1,5 @@
+const SCREENSHOT_INTERVAL = 5000
+
+module.exports = {
+  SCREENSHOT_INTERVAL
+} 
