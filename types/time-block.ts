@@ -1,5 +1,5 @@
 export interface TimeBlock {
-  id: string
+  id: number
   start: number
   duration: number
   title: string

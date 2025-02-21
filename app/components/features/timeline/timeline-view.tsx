@@ -1,40 +1,24 @@
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+'use client'
+
+import { Card } from "@/app/components/ui/card"
+import { Badge } from "@/app/components/ui/badge"
+import { useTimeBlocks } from "@/app/hooks/use-time-blocks"
+import { format } from "date-fns"
 
 export function TimelineView() {
-  const timeBlocks = [
-    {
-      id: 1,
-      start: "9:00 AM",
-      end: "10:30 AM",
-      title: "Client Meeting - Project Review",
-      client: "Acme Corp",
-      billable: true,
-    },
-    {
-      id: 2,
-      start: "10:45 AM",
-      end: "12:00 PM",
-      title: "Documentation & Notes",
-      client: "Acme Corp",
-      billable: true,
-    },
-    {
-      id: 3,
-      start: "12:00 PM",
-      end: "1:00 PM",
-      title: "Lunch Break",
-      billable: false,
-    },
-    {
-      id: 4,
-      start: "1:00 PM",
-      end: "3:30 PM",
-      title: "Development Work",
-      client: "TechStart Inc",
-      billable: true,
-    },
-  ]
+  const { timeBlocks, loading, error } = useTimeBlocks('today')
+
+  if (loading) {
+    return <div className="text-center text-muted-foreground">Loading time blocks...</div>
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">Error loading time blocks: {error}</div>
+  }
+
+  if (!timeBlocks.length) {
+    return <div className="text-center text-muted-foreground">No time blocks found for today</div>
+  }
 
   return (
     <div className="space-y-4">
@@ -43,15 +27,14 @@ export function TimelineView() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold">{block.title}</h3>
-                <Badge variant={block.billable ? "default" : "secondary"}>
-                  {block.billable ? "Billable" : "Non-Billable"}
+                <h3 className="font-semibold">{block.task_label}</h3>
+                <Badge variant={block.is_billable ? "default" : "secondary"}>
+                  {block.is_billable ? "Billable" : "Non-Billable"}
                 </Badge>
               </div>
-              {block.client && <p className="text-sm text-muted-foreground">{block.client}</p>}
             </div>
             <div className="text-sm text-muted-foreground">
-              {block.start} - {block.end}
+              {format(new Date(block.start_time), "h:mm a")} - {format(new Date(block.end_time), "h:mm a")}
             </div>
           </div>
         </Card>

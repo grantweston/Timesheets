@@ -1,17 +1,17 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "@/app/lib/utils"
+import { cn } from "@/lib/utils"
 import { TimeBlockDialog } from "./time-block-dialog"
 import type { TimeBlock } from "@/types/time-block"
-import { Button } from "@/app/components/ui/button"
+import { Button } from "./ui/button"
 import { Plus, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Clock, Chrome, Slack, Mail, Code, FileCode, Monitor, Minus } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip"
-import { Calendar } from "@/app/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import { DayPicker } from "./ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { format, addDays, subDays } from "date-fns"
-import { Badge } from "@/app/components/ui/badge"
-import { ScrollArea } from "@/app/components/ui/scroll-area"
+import { Badge } from "./ui/badge"
+import { ScrollArea } from "./ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -20,9 +20,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/app/components/ui/select"
-import { useTimeBlocks } from "@/app/hooks/use-time-blocks"
-import { useTimeBlockMutations } from "@/app/hooks/use-time-block-mutations"
+} from "@/components/ui/select"
 
 // Mock data with categories and colors
 const initialTimeBlocks: TimeBlock[] = [
@@ -147,53 +145,19 @@ const appIcons: Record<string, React.ReactNode> = {
   "Figma": <FileCode className="h-3 w-3" />,
 }
 
-interface DailySummary {
-  totalHours: number
-  billableHours: number
-  categories: Record<string, number>
-}
-
 export function TimeGrid() {
-  const hours = Array.from({ length: 13 }, (_, i) => i + 8) as number[]
+  const hours = Array.from({ length: 13 }, (_, i) => i + 8) as number[] // Type assertion for hours array
   const [selectedBlock, setSelectedBlock] = React.useState<TimeBlock | null>(null)
   const [hoveredBlock, setHoveredBlock] = React.useState<number | null>(null)
+  const [timeBlocks, setTimeBlocks] = React.useState<TimeBlock[]>(initialTimeBlocks)
   const [zoomLevel, setZoomLevel] = React.useState<number>(1)
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date())
   const [view, setView] = React.useState<"day" | "week">("day")
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false)
 
-  // Fetch time blocks from Supabase
-  const { timeBlocks: supabaseBlocks, loading, error } = useTimeBlocks(view === 'day' ? 'today' : 'week')
-
-  const { createTimeBlock, updateTimeBlock } = useTimeBlockMutations()
-
-  // Convert Supabase time blocks to our TimeBlock format
-  const timeBlocks = React.useMemo(() => {
-    if (!supabaseBlocks) return []
-    
-    return supabaseBlocks.map(block => {
-      const startDate = new Date(block.start_time)
-      const endDate = new Date(block.end_time)
-      const start = startDate.getHours() + startDate.getMinutes() / 60
-      const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60) // Convert to hours
-
-      return {
-        id: parseInt(block.id),
-        start,
-        duration,
-        title: block.task_label,
-        client: "", // We'll need to fetch this from the project
-        billable: block.is_billable,
-        category: (block.classification?.category?.toLowerCase() || "development") as TimeBlock["category"],
-        description: [],
-        applications: [],
-      }
-    })
-  }, [supabaseBlocks])
-
   // Calculate daily summary
   const dailySummary = React.useMemo(() => {
-    return timeBlocks.reduce<DailySummary>(
+    return timeBlocks.reduce(
       (acc, block) => {
         acc.totalHours += block.duration
         if (block.billable) {
@@ -202,7 +166,7 @@ export function TimeGrid() {
         acc.categories[block.category] = (acc.categories[block.category] || 0) + block.duration
         return acc
       },
-      { totalHours: 0, billableHours: 0, categories: {} },
+      { totalHours: 0, billableHours: 0, categories: {} as Record<string, number> },
     )
   }, [timeBlocks])
 
@@ -212,61 +176,25 @@ export function TimeGrid() {
   const minBlockDuration = 0.25
   const minBlockSpacing = 4 // Minimum pixels between blocks
 
-  const handleBlockUpdate = async (updatedBlock: TimeBlock) => {
-    try {
-      // Convert our TimeBlock format back to Supabase format
-      const startDate = new Date()
-      startDate.setHours(Math.floor(updatedBlock.start))
-      startDate.setMinutes((updatedBlock.start % 1) * 60)
-      
-      const endDate = new Date(startDate)
-      endDate.setTime(startDate.getTime() + updatedBlock.duration * 60 * 60 * 1000)
-
-      await updateTimeBlock(updatedBlock.id.toString(), {
-        task_label: updatedBlock.title,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-        is_billable: updatedBlock.billable,
-        classification: { category: updatedBlock.category, confidence: 1.0 }
-      })
-
-      setSelectedBlock(null)
-    } catch (error) {
-      console.error('Failed to update time block:', error)
-    }
+  const handleBlockUpdate = (updatedBlock: TimeBlock) => {
+    setTimeBlocks((blocks) => blocks.map((block) => (block.id === updatedBlock.id ? updatedBlock : block)))
+    setSelectedBlock(null)
   }
 
-  const handleAddBlock = async () => {
-    try {
-      const now = new Date()
-      const startTime = new Date(now.setHours(12, 0, 0)).toISOString()
-      const endTime = new Date(now.setHours(13, 0, 0)).toISOString()
-
-      const data = await createTimeBlock({
-        task_label: "New Time Block",
-        start_time: startTime,
-        end_time: endTime,
-        is_billable: true,
-        classification: { category: "Development", confidence: 1.0 }
-      })
-
-      // Convert the new block to our TimeBlock format
-      const newBlock: TimeBlock = {
-        id: parseInt(data.id),
-        start: 12,
-        duration: 1,
-        title: data.task_label,
-        client: "",
-        billable: data.is_billable,
-        category: "development",
-        description: [],
-        applications: [],
-      }
-
-      setSelectedBlock(newBlock)
-    } catch (error) {
-      console.error('Failed to create time block:', error)
+  const handleAddBlock = () => {
+    const newBlock: TimeBlock = {
+      id: Date.now(),
+      start: 12,
+      duration: 1,
+      title: "New Time Block",
+      client: "",
+      billable: true,
+      category: "development",
+      description: ["Add work description"],
+      applications: [],
     }
+    setTimeBlocks([...timeBlocks, newBlock])
+    setSelectedBlock(newBlock)
   }
 
   const handleDateChange = (direction: "prev" | "next") => {
@@ -442,14 +370,6 @@ export function TimeGrid() {
     )
   }
 
-  if (loading) {
-    return <div className="text-center text-muted-foreground">Loading time blocks...</div>
-  }
-
-  if (error) {
-    return <div className="text-center text-red-500">Error loading time blocks: {error}</div>
-  }
-
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -491,13 +411,14 @@ export function TimeGrid() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
+                  <DayPicker
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date: Date | undefined) => {
-                      if (date) setSelectedDate(date)
+                    onSelect={(date) => {
+                      setSelectedDate(date || new Date())
+                      setIsDatePickerOpen(false)
                     }}
-                    className="rounded-md border"
+                    initialFocus
                   />
                 </PopoverContent>
               </Popover>

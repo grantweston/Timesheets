@@ -57,9 +57,7 @@ const ReactFlowWrapper = dynamic(
 // Import the CSS only on the client side
 const ReactFlowStyles = () => {
   useEffect(() => {
-    import('reactflow/dist/style.css').catch(() => {
-      console.warn('Failed to load ReactFlow styles');
-    });
+    require('reactflow/dist/style.css');
   }, []);
   return null;
 };
@@ -342,7 +340,7 @@ export default function TestSupabase() {
                 fillOpacity: isDark ? 0.9 : 0.8,
                 stroke: color,
                 strokeWidth: 1,
-                rx: 4,
+                borderRadius: '4px'
               },
               style: {
                 stroke: color,

@@ -10,9 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 dark:from-background dark:via-background/95 dark:to-background/90">
-      <div className="absolute inset-0 bg-[url(/grid.svg)] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-      
+    <div className="flex min-h-screen flex-col bg-white dark:bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="container flex h-14 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-semibold">

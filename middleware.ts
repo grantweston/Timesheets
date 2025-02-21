@@ -26,13 +26,8 @@ export default authMiddleware({
     // Only check onboarding status for dashboard routes
     if (req.nextUrl.pathname.startsWith('/dashboard')) {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_CLERK_FRONTEND_API}/users/${auth.userId}`, {
-          headers: {
-            Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-          },
-        });
-        const user = await response.json();
-        const hasCompletedOnboarding = user.unsafe_metadata?.hasCompletedOnboarding;
+        const user = await clerkClient.users.getUser(auth.userId);
+        const hasCompletedOnboarding = user.unsafeMetadata.hasCompletedOnboarding;
 
         if (!hasCompletedOnboarding) {
           return NextResponse.redirect(new URL('/onboarding/desktop', req.url));
