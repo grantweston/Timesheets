@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import type { TimeBlock } from "@/types/time-block"
 
 // Mock data for projects
 const allProjects = [
@@ -78,6 +79,14 @@ const allProjects = [
   },
 ]
 
+const categoryColors: Record<TimeBlock["category"], { bg: string; border: string }> = {
+  meeting: { bg: "bg-violet-500/10", border: "border-violet-500/20" },
+  development: { bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+  planning: { bg: "bg-violet-400/10", border: "border-violet-400/20" },
+  break: { bg: "bg-violet-300/10", border: "border-violet-300/20" },
+  admin: { bg: "bg-indigo-400/10", border: "border-indigo-400/20" },
+}
+
 export function ProjectList() {
   const router = useRouter()
   const pathname = usePathname()
@@ -127,7 +136,7 @@ export function ProjectList() {
   }, [])
 
   const updateSearch = (value: string) => {
-    const params = new URLSearchParams(searchParams)
+    const params = new URLSearchParams(searchParams?.toString())
     if (value) {
       params.set("search", value)
     } else {
@@ -146,7 +155,11 @@ export function ProjectList() {
         >
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">{client.client}</h2>
-            <Button variant="ghost" size="sm" className="transition-colors hover:text-primary">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="transition-colors hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+            >
               View All
             </Button>
           </div>
@@ -154,18 +167,28 @@ export function ProjectList() {
             {client.projects.map((project) => (
               <Card
                 key={project.id}
-                className={cn("hover-card overflow-hidden transition-all duration-300", search && "animate-scale-up")}
+                className={cn(
+                  "hover-card overflow-hidden transition-all duration-300",
+                  search && "animate-scale-up",
+                  hoveredProject === project.id && "ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/10"
+                )}
                 onMouseEnter={() => setHoveredProject(project.id)}
                 onMouseLeave={() => setHoveredProject(null)}
               >
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                   <div className="space-y-1">
-                    <CardTitle className="transition-colors hover:text-primary">{project.name}</CardTitle>
+                    <CardTitle className="transition-colors hover:text-violet-600 dark:hover:text-violet-300">
+                      {project.name}
+                    </CardTitle>
                     <CardDescription className="line-clamp-2">{project.description}</CardDescription>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0 transition-colors hover:text-primary">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="transition-colors hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+                      >
                         <span className="sr-only">Open menu</span>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -182,45 +205,52 @@ export function ProjectList() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Progress</span>
                       <span
-                        className="font-medium transition-colors"
-                        style={{
-                          color:
-                            progress[project.id] >= 100
-                              ? "hsl(var(--success))"
-                              : hoveredProject === project.id
-                                ? "hsl(var(--primary))"
-                                : "inherit",
-                        }}
+                        className={cn(
+                          "font-medium transition-colors",
+                          progress[project.id] >= 100
+                            ? "text-violet-600 dark:text-violet-400"
+                            : hoveredProject === project.id
+                              ? "text-violet-600 dark:text-violet-400"
+                              : "text-foreground"
+                        )}
                       >
                         {progress[project.id] || 0}%
                       </span>
                     </div>
-                    <Progress value={progress[project.id] || 0} className="transition-all duration-500" />
+                    <Progress 
+                      value={progress[project.id] || 0} 
+                      className="h-2 transition-all duration-500"
+                    >
+                      <div 
+                        className="h-full bg-gradient-to-r from-violet-600 to-indigo-600 transition-all" 
+                        style={{ width: `${progress[project.id] || 0}%` }} 
+                      />
+                    </Progress>
                   </div>
-                  <Separator />
+                  <Separator className="bg-zinc-200 dark:bg-zinc-800" />
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-2 transition-colors hover:text-primary">
+                    <div className="space-y-2 transition-colors hover:text-violet-600 dark:hover:text-violet-300">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="h-4 w-4" />
                         Hours Logged
                       </div>
                       <div className="font-medium">{project.hoursLogged}h</div>
                     </div>
-                    <div className="space-y-2 transition-colors hover:text-primary">
+                    <div className="space-y-2 transition-colors hover:text-violet-600 dark:hover:text-violet-300">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Timer className="h-4 w-4" />
                         Budget
                       </div>
                       <div className="font-medium">{project.budget}h</div>
                     </div>
-                    <div className="space-y-2 transition-colors hover:text-primary">
+                    <div className="space-y-2 transition-colors hover:text-violet-600 dark:hover:text-violet-300">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <DollarSign className="h-4 w-4" />
                         Rate
                       </div>
                       <div className="font-medium">${project.rate}/h</div>
                     </div>
-                    <div className="space-y-2 transition-colors hover:text-primary">
+                    <div className="space-y-2 transition-colors hover:text-violet-600 dark:hover:text-violet-300">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Users className="h-4 w-4" />
                         Team
@@ -228,15 +258,18 @@ export function ProjectList() {
                       <div className="font-medium">{project.team} people</div>
                     </div>
                   </div>
-                  <Separator />
+                  <Separator className="bg-zinc-200 dark:bg-zinc-800" />
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 transition-colors hover:text-primary">
+                    <div className="flex items-center gap-2 transition-colors hover:text-violet-600 dark:hover:text-violet-300">
                       <PieChart className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">Last active {project.lastActive}</span>
                     </div>
                     <Badge
                       variant={project.status === "active" ? "default" : "secondary"}
-                      className="transition-all hover:scale-105"
+                      className={cn(
+                        "transition-all hover:scale-105",
+                        project.status === "active" && "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                      )}
                     >
                       {project.status}
                     </Badge>

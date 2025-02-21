@@ -1,9 +1,9 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/app/components/ui/button"
+import { Card } from "@/app/components/ui/card"
+import { useToast } from "@/app/components/ui/use-toast"
 import { useState } from "react"
 import { Loader2, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"

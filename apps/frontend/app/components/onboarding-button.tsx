@@ -1,9 +1,9 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/app/components/ui/button"
 import { ArrowRight, ArrowUpRight, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { steps } from '../onboarding/layout'
+import { steps } from '@/app/lib/onboarding-steps'
 
 function getOnboardingProgress() {
   if (typeof window === 'undefined') return { progress: 0, hasStarted: false, nextStep: '/onboarding/profile' }
@@ -27,7 +27,7 @@ export function OnboardingButton() {
 
   if (hasCompletedOnboarding) {
     return (
-      <Button size="lg" className="gap-2" asChild>
+      <Button size="lg" className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/25" asChild>
         <Link href="/dashboard/overview">
           Open Dashboard <ArrowUpRight className="h-4 w-4" />
         </Link>
@@ -36,7 +36,12 @@ export function OnboardingButton() {
   }
 
   return (
-    <Button size="lg" className="gap-2" asChild disabled={isLoading}>
+    <Button 
+      size="lg" 
+      className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/25" 
+      asChild 
+      disabled={isLoading}
+    >
       <Link href={hasStarted ? nextStep : "/onboarding/profile"}>
         {isLoading ? (
           <>
