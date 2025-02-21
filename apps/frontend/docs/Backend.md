@@ -1,33 +1,30 @@
 Backend Document
 1. Overview & Goals
-Monolithic MVP
-We will build a single codebase for both server and front-end using Next.js (in the same project).
-The server functionality (for time capture, invoice generation, and AI calls) will live in Next.js API routes.
+Web App Architecture
+We will build a Next.js web application that connects to Supabase for data access.
+The web app focuses on displaying and managing timesheet data, and handling invoice generation.
 Speed to Market
-Minimize complexity: no separate microservices.
-Rely on ephemeral file storage for screenshots/audio so we can quickly transcribe/classify them.
+Minimize complexity: no direct file handling in web app.
+All raw data (screenshots/audio) is handled by the desktop app via Google Cloud.
 Key Functionalities
-Electron App Ingestion: Desktop captures screenshots/audio and sends them to the Next.js backend.
-Non-Billable Tagging & Overrides: Store time blocks in Supabase, allowing user-defined toggles.
+Data Access: Read timesheet data from Supabase that was processed by the desktop app pipeline.
+Non-Billable Tagging & Overrides: Update time blocks in Supabase, allowing user-defined toggles.
 Invoice Generation: Summarize unbilled time blocks, allow final review, send via Stripe or QuickBooks.
-Ephemeral Data Deletion: Immediately delete raw files once classification or transcription is complete.
 
 2. Technologies
 Next.js (TypeScript)
-Provides both the front-end pages and the API routes for the MVP.
-Located in the /app/api/... directory (Next.js 13+ App Router) or /pages/api/... if using the Pages Router.
+Provides the front-end pages and minimal API routes for the web app.
+Located in the /app/api/... directory (Next.js 13+ App Router).
 Supabase (Postgres)
 Stores user data (with references to Clerk), time blocks, invoice data, etc.
 A small lib/supabase.ts sets up the client for server usage.
+Desktop app pipeline writes the processed data here.
 Clerk for Auth
-The Electron app and the Next.js front end each pass a Clerk token to the backend.
-The backend verifies the token, ensures the user is onboarded (has installed the desktop app), and proceeds or blocks the request.
-Whisper (External STT) & Gemini (Classification)
-Audio chunks are sent to Whisper for transcription.
-The resulting text + other metadata is passed to Gemini for classification (time block labeling, client matching, etc.).
+The web app uses Clerk for authentication.
+Supabase RLS policies are configured to use Clerk user IDs.
 Stripe / QuickBooks
 For invoice sending and payment tracking.
-Invoices are stored in Supabase with status changes from “draft” → “sent” → “paid.”
+Invoices are stored in Supabase with status changes from "draft" → "sent" → "paid."
 
 3. API Routes & Structure
 Consider a Next.js 13 App Router approach:
@@ -38,71 +35,19 @@ my-app/
   │   ├─ page.tsx        // Landing page
   │   └─ api/
   │       ├─ timesheets/
-  │       │   ├─ capture-chunk/route.ts
-  │       │   ├─ [blockId]/route.ts
+  │       │   ├─ [blockId]/route.ts  // PATCH: update a block
+  │       │   └─ route.ts            // GET: list time blocks
   │       ├─ invoices/
-  │       │   ├─ [invoiceId]/send/route.ts
-  │       │   ├─ [invoiceId]/route.ts
-  │       │   ├─ unbilled/route.ts
-  │       └─ ...
-  ├─ lib/
-  │   ├─ supabase.ts
-  │   ├─ ephemeral.ts   // ephemeral file handling
-  │   ├─ ai.ts          // calls to Whisper/Gemini
-  │   └─ ...
-  └─ ...
+  │       │   ├─ [invoiceId]/
+  │       │   │  ├─ send/
+  │       │   │  │  └─ route.ts      // POST: finalize & send invoice
+  │       │   │  └─ route.ts         // GET or PATCH an invoice
+  │       │   └─ unbilled/
+  │       │      └─ route.ts         // GET unbilled time blocks
+  │       └─ auth/
+  │          └─ route.ts             // (Optional) Auth endpoints if needed
 
-3.1 Timesheet Endpoints
-POST /api/timesheets/capture-chunk
-From Electron app:
-Receives screenshots/audio as a multipart or JSON with Base64.
-Immediately writes them to ephemeral storage (memory/disk).
-Calls Whisper → transcript.
-Calls Gemini → classification.
-Saves final “time blocks” to Supabase.
-Deletes raw ephemeral files.
-Response: 201 + message “Chunk processed.”
-GET /api/timesheets?date=...
-From Next.js front end: fetch user’s time blocks for a given day or range.
-Response: Array of time blocks (start_time, end_time, is_billable, task_label, etc.).
-PATCH /api/timesheets/[blockId]
-Front end toggles is_billable, merges, or updates the label.
-Response: updated block data or success message.
-3.2 Invoice Endpoints
-GET /api/invoices/unbilled
-Returns a summary of unbilled time blocks, grouped by client.
-POST /api/invoices/[invoiceId]/send
-When user clicks “Final Review & Send,” create or update an invoice in Supabase.
-If user chooses Stripe or QuickBooks, make an external API call.
-Update invoice status in Supabase to “sent.”
-
-4. Ephemeral Storage & Deletion Criteria
-Flow:
-Electron app uploads chunk → Next.js ephemeral code writes to memory or a temp folder (e.g., /tmp/).
-Immediately process with Whisper & Gemini.
-Once the time blocks are successfully stored in Supabase, delete ephemeral files.
-Success Criteria
-Data is considered safe once:
-The transcript from Whisper is obtained.
-Gemini classification is complete.
-A successful DB commit is done (time blocks are saved).
-After that, ephemeral files are purged.
-If an error occurs, ephemeral files are still removed eventually so they don’t persist (to maintain privacy).
-Implementation
-lib/ephemeral.ts:
-ts
-Copy
-export async function saveToTemp(fileBuffer): Promise<string> {
-  // writes to /tmp/..., returns path
-}
-export async function deleteTempFile(path: string) {
-  // remove from disk
-}
-
-
-Called from inside your route handler.
-
-5. Database Schema (Supabase)
+4. Database Schema (Supabase)
 sql
 Copy
 -- Users
@@ -115,7 +60,7 @@ CREATE TABLE users (
   created_at TIMESTAMP DEFAULT now()
 );
 
--- TimeBlocks
+-- TimeBlocks (populated by desktop app pipeline)
 CREATE TABLE time_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -152,52 +97,46 @@ CREATE TABLE invoice_items (
 
 Notes:
 users.is_desktop_setup: If false, block usage.
-time_blocks.classification: Optionally store raw AI output from Gemini.
+time_blocks: Populated by the desktop app pipeline via Google Cloud.
 invoice_items: Link time blocks to invoice line items with custom rate/hours.
 
-6. Implementation Details
+5. Implementation Details
 Authentication (Clerk)
-Each request from Electron or Next.js front end includes a Clerk token.
+Each request from the web app includes a Clerk token.
 In your Next.js API route, use a middleware or code snippet to verify the user.
 Check users.is_desktop_setup; if false, return a 403.
-Whisper & Gemini (in lib/ai.ts)
-ts
+Supabase RLS Policies
+Configure Row Level Security to use clerk_user_id:
+sql
 Copy
-export async function transcribeAudio(tempFilePath: string): Promise<string> {
-  // Call external Whisper endpoint, pass file, get transcript
-}
+CREATE POLICY "Users can only access their own time blocks"
+ON time_blocks
+FOR ALL
+USING (user_id IN (
+  SELECT id FROM users WHERE clerk_user_id = auth.uid()
+));
 
-export async function classifyTranscript(transcript: string, userContext: any): Promise<any> {
-  // Call Gemini 2.0 with transcript + context
-  // Returns structured tasks, e.g. { blocks: [...] }
-}
-
-
-Saving & Merging Time Blocks
-The classification might yield multiple blocks. For each block, insert a time_blocks record.
-If you want to merge with existing partial blocks, do some logic in the route or a service function.
 Invoice Workflow
 The front end calls GET /api/invoices/unbilled to retrieve all time blocks with is_billed = false.
 The user picks a subset or merges them into an invoice.
 POST /api/invoices/[invoiceId]/send: updates the DB row, calls Stripe or QuickBooks.
 After success, status = 'sent'. If Stripe notifies payment, set status = 'paid'.
 
-7. Performance & Scalability
+6. Performance & Scalability
 MVP Approach
-You can process each chunk synchronously in the route, or use a short asynchronous call.
-The next step for scale might be queue-based or background workers if concurrency is high.
+Focus on efficient Supabase queries and caching strategies.
+Use Supabase real-time features for live updates.
 Deployment
-Deploy your Next.js monolith.
-Because ephemeral data is stored on local disk, if you run multiple container instances, each instance has its own ephemeral storage. That’s typically okay for an MVP. Just ensure no single chunk is spread across different instances. The Electron app can pick any instance, but each chunk is processed in full by whichever instance receives it.
+Deploy your Next.js web app.
+Ensure proper environment variables for Supabase, Clerk, and payment providers.
 
-8. Error Handling & Logging
+7. Error Handling & Logging
 Try/Catch in API routes
-If Whisper or Gemini calls fail, return a 500 with a clear message.
-Clean up ephemeral files if the process fails mid-way.
+If Supabase or payment provider calls fail, return a 500 with a clear message.
 Logging
 Use console logs or a minimal library like pino or Winston.
-Track when ephemeral files are created/deleted.
+Track important user actions and errors.
 Retries
-If an AI call times out or hits a rate limit, consider a small retry logic, but for MVP you can keep it simple.
+For critical operations (like finalizing invoices), implement retry logic with exponential backoff.
 
 

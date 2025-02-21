@@ -44,5 +44,12 @@ export default authMiddleware({
 
 // Stop Middleware running on static files and public folder
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    // Exclude files with extensions like images, videos, fonts, etc.
+    "/((?!.*\\.[\\w]+$|_next).*)",
+    // Include root route
+    "/",
+    // Include /api routes
+    "/(api|trpc)(.*)"
+  ]
 }; 

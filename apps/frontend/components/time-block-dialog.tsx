@@ -238,10 +238,19 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
           )}
 
           <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={onClose}>
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+            >
               Cancel
             </Button>
-            <Button onClick={() => onUpdate(editedBlock)}>Save Changes</Button>
+            <Button 
+              onClick={() => onUpdate(editedBlock)}
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
+            >
+              Save Changes
+            </Button>
           </div>
         </div>
       </DialogContent>

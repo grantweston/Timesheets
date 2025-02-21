@@ -1,4 +1,4 @@
-import { getMicrosoftAuthUrl } from "@/lib/oauth"
+import { getMicrosoftAuthUrl } from "@/app/lib/oauth"
 import { NextResponse } from "next/server"
 
 export async function GET() {

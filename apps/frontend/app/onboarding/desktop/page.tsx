@@ -1,13 +1,13 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/app/components/ui/button"
+import { Card } from "@/app/components/ui/card"
+import { useToast } from "@/app/components/ui/use-toast"
 import { useState } from "react"
 import { Loader2, Download, Monitor, CheckCircle2, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert"
+import { Progress } from "@/app/components/ui/progress"
 
 const steps = [
   {
@@ -79,7 +79,7 @@ export default function DesktopPage() {
       transition={{ duration: 0.3 }}
       className="space-y-8"
     >
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {steps.map((step, index) => (
           <motion.div
             key={index}
@@ -87,34 +87,36 @@ export default function DesktopPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2, delay: index * 0.1 }}
           >
-            <Card className={`p-6 ${currentStep === index ? 'ring-2 ring-primary' : 'opacity-70'}`}>
-              <div className="flex items-start gap-4">
-                <div className="rounded-full h-8 w-8 flex items-center justify-center bg-primary/10 text-primary">
+            <Card className={`p-8 ${currentStep === index ? 'ring-2 ring-primary' : 'opacity-80'}`}>
+              <div className="flex items-start gap-6">
+                <div className="rounded-full h-10 w-10 flex items-center justify-center bg-primary/10 text-primary shrink-0">
                   {currentStep > index ? (
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className="h-6 w-6" />
                   ) : (
-                    <span>{index + 1}</span>
+                    <span className="text-lg font-medium">{index + 1}</span>
                   )}
                 </div>
-                <div className="flex-1 space-y-2">
-                  <h3 className="font-medium">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+                    <p className="text-muted-foreground">{step.description}</p>
+                  </div>
                   
                   {index === 0 && currentStep === 0 && (
-                    <div className="mt-4">
+                    <div className="space-y-4">
                       {isDownloading ? (
-                        <div className="space-y-2">
-                          <Progress value={downloadProgress} className="w-full" />
+                        <div className="space-y-3">
+                          <Progress value={downloadProgress} className="w-full h-2" />
                           <p className="text-sm text-muted-foreground">Downloading... {downloadProgress}%</p>
                         </div>
                       ) : (
-                        <div className="flex gap-4">
-                          <Button onClick={handleDownload} className="gap-2">
-                            <Download className="h-4 w-4" />
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <Button onClick={handleDownload} size="lg" className="gap-2 w-full sm:w-auto">
+                            <Download className="h-5 w-5" />
                             Download for macOS
                           </Button>
-                          <Button variant="outline" className="gap-2">
-                            <Download className="h-4 w-4" />
+                          <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
+                            <Download className="h-5 w-5" />
                             Download for Windows
                           </Button>
                         </div>
@@ -123,32 +125,30 @@ export default function DesktopPage() {
                   )}
 
                   {index === 1 && currentStep === 1 && (
-                    <div className="mt-4 space-y-4">
-                      <Alert>
-                        <Monitor className="h-4 w-4" />
-                        <AlertTitle>Installation Instructions</AlertTitle>
-                        <AlertDescription>
-                          1. Open the downloaded file
-                          <br />
-                          2. Follow the installation wizard
-                          <br />
-                          3. Grant necessary permissions when prompted
+                    <div className="space-y-6">
+                      <Alert className="bg-muted">
+                        <Monitor className="h-5 w-5" />
+                        <AlertTitle className="text-base font-medium">Installation Instructions</AlertTitle>
+                        <AlertDescription className="mt-2 space-y-2">
+                          <p>1. Open the downloaded file</p>
+                          <p>2. Follow the installation wizard</p>
+                          <p>3. Grant necessary permissions when prompted</p>
                         </AlertDescription>
                       </Alert>
-                      <Button onClick={generatePairingCode}>
+                      <Button onClick={generatePairingCode} size="lg" className="w-full sm:w-auto">
                         I've installed the app
                       </Button>
                     </div>
                   )}
 
                   {index === 2 && currentStep === 2 && (
-                    <div className="mt-4 space-y-4">
+                    <div className="space-y-6">
                       {pairingCode && (
-                        <Alert>
-                          <AlertTitle className="text-lg font-mono">
+                        <Alert className="bg-muted border-primary/20">
+                          <AlertTitle className="text-2xl font-mono tracking-wider text-center py-2">
                             {pairingCode}
                           </AlertTitle>
-                          <AlertDescription>
+                          <AlertDescription className="text-center text-muted-foreground">
                             Enter this code in your desktop app to connect it to your account
                           </AlertDescription>
                         </Alert>
@@ -156,15 +156,17 @@ export default function DesktopPage() {
                       <Button 
                         onClick={verifyInstallation} 
                         disabled={isVerifying || isVerified}
+                        size="lg"
+                        className="w-full sm:w-auto"
                       >
                         {isVerifying ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                             Verifying...
                           </>
                         ) : isVerified ? (
                           <>
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            <CheckCircle2 className="mr-2 h-5 w-5" />
                             Connected!
                           </>
                         ) : (
@@ -179,60 +181,6 @@ export default function DesktopPage() {
           </motion.div>
         ))}
       </div>
-
-      {isDownloading && (
-        <Progress value={downloadProgress} className="w-full" />
-      )}
-
-      <div className="flex justify-center">
-        {currentStep === 0 && (
-          <Button onClick={handleDownload} disabled={isDownloading}>
-            {isDownloading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Downloading...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Download Desktop App
-              </>
-            )}
-          </Button>
-        )}
-        {currentStep === 1 && (
-          <Button onClick={generatePairingCode}>
-            I've installed the app
-          </Button>
-        )}
-        {currentStep === 2 && (
-          <Button onClick={verifyInstallation} disabled={isVerifying || isVerified}>
-            {isVerifying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
-              </>
-            ) : isVerified ? (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Connected
-              </>
-            ) : (
-              "Connect"
-            )}
-          </Button>
-        )}
-      </div>
-
-      {pairingCode && (
-        <Alert>
-          <Monitor className="h-4 w-4" />
-          <AlertTitle>Enter this code in the desktop app</AlertTitle>
-          <AlertDescription className="font-mono text-lg">
-            {pairingCode}
-          </AlertDescription>
-        </Alert>
-      )}
     </motion.div>
   )
 }
