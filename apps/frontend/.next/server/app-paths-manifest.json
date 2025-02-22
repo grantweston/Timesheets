@@ -1,5 +1,3 @@
 {
-  "/page": "app/page.js",
-  "/onboarding/desktop/page": "app/onboarding/desktop/page.js",
-  "/onboarding/non-billable/page": "app/onboarding/non-billable/page.js"
+  "/onboarding/desktop/page": "app/onboarding/desktop/page.js"
 }

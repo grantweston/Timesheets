@@ -86,7 +86,7 @@ export default function DesktopPage() {
       setPairingCode(code);
       toast({
         title: 'Pairing code generated',
-        description: `Your code is: ${token}`,
+        description: `Your code is: ${code}`,
       });
       console.log('Setting current step to 2');
       setCurrentStep(2);
