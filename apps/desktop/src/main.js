@@ -1,14 +1,17 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const { SCREENSHOT_INTERVAL } = require('./config')
 const { captureScreen, saveScreenshot } = require('./services/screenshotService')
 const { checkConnectivity } = require('./services/networkService')
 const { uploadScreenshot } = require('./services/uploadService')
 const { TrayManager } = require('./utils/trayManager')
+const path = require('path')
+const os = require('os')
 
 
 let win = null
 let trayManager = null
 let networkCheckInterval = null
+let authWindow = null
 
 // TODO: This should be set after OAuth login with Clerk
 // For now using a placeholder. This needs to be replaced with the actual user ID
@@ -17,15 +20,14 @@ global.userId = "123e4567-e89b-12d3-a456-426614174000";
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 400,
+    height: 500,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      preload: path.join(__dirname, 'preload-auth.js')
     }
-  })
+  });
 
-  win.loadFile('index.html')
+  win.loadFile('src/auth.html');
 }
 
 async function startScreenshotCycle() {
@@ -63,6 +65,54 @@ async function startScreenshotCycle() {
     console.error('Screenshot capture failed:', error)
   }
 }
+
+function createAuthWindow() {
+  authWindow = new BrowserWindow({
+    width: 400,
+    height: 500,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-auth.js')
+    }
+  });
+
+  authWindow.loadFile('src/auth.html');
+}
+
+async function verifyPairingCode(code) {
+  try {
+    const response = await fetch('YOUR_API_URL/api/device-pairing/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        code,
+        deviceName: os.hostname()
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      global.userId = data.userId;
+      startScreenshotCycle();
+      return { success: true };
+    }
+    return { success: false, error: 'Invalid code' };
+  } catch (error) {
+    console.error('Verification failed:', error);
+    return { success: false, error: 'Connection failed' };
+  }
+}
+
+// Add this handler for the preload bridge
+ipcMain.handle('verifyDeviceCode', async (event, code) => {
+  return await verifyPairingCode(code);
+});
+
+ipcMain.on('close-auth-window', () => {
+  if (authWindow) {
+    authWindow.close();
+    authWindow = null;
+  }
+});
 
 app.whenReady().then(async () => {
   createWindow()

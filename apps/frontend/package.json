@@ -55,6 +55,8 @@
     "next": "^15.1.7",
     "next-themes": "latest",
     "node-quickbooks": "^2.0.45",
+    "pg": "^8.13.3",
+    "pg-pool": "^3.7.1",
     "react": "^18",
     "react-day-picker": "latest",
     "react-dom": "^18",
