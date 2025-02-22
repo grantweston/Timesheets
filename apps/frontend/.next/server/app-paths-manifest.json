@@ -2,5 +2,6 @@
   "/api/complete-onboarding/route": "app/api/complete-onboarding/route.js",
   "/onboarding/non-billable/page": "app/onboarding/non-billable/page.js",
   "/dashboard/overview/page": "app/dashboard/overview/page.js",
+  "/onboarding/engagement-letters/page": "app/onboarding/engagement-letters/page.js",
   "/onboarding/desktop/page": "app/onboarding/desktop/page.js"
 }

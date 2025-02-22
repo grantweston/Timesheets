@@ -21,10 +21,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/onboarding/desktop/page.js"
     ],
+    "/onboarding/non-billable/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/onboarding/non-billable/page.js"
+    ],
     "/api/complete-onboarding/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/complete-onboarding/route.js"
+    ],
+    "/onboarding/engagement-letters/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/onboarding/engagement-letters/page.js"
     ],
     "/dashboard/layout": [
       "static/chunks/webpack.js",
@@ -35,41 +45,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/overview/page.js"
-    ],
-    "/onboarding/profile/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/onboarding/profile/page.js"
-    ],
-    "/onboarding/billing/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/onboarding/billing/page.js"
-    ],
-    "/onboarding/integrations/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/onboarding/integrations/page.js"
-    ],
-    "/api/auth/stripe/status/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/stripe/status/route.js"
-    ],
-    "/api/auth/quickbooks/status/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/quickbooks/status/route.js"
-    ],
-    "/onboarding/engagement-letters/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/onboarding/engagement-letters/page.js"
-    ],
-    "/onboarding/non-billable/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/onboarding/non-billable/page.js"
     ]
   }
 }

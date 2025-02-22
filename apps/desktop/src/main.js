@@ -13,15 +13,18 @@ let trayManager = null
 let networkCheckInterval = null
 let authWindow = null
 
-// Generate a unique device ID using hostname and a random UUID
-const deviceId = crypto.createHash('sha256')
-  .update(`${os.hostname()}-${crypto.randomUUID()}`)
-  .digest('hex')
+// Generate a unique device ID
+const deviceId = crypto.randomUUID();
+
+// Get system info
+const platform = process.platform === 'darwin' ? 'macos' : process.platform;
+const deviceName = os.hostname();
 
 // TODO: This should be set after OAuth login with Clerk
 // For now using a placeholder. This needs to be replaced with the actual user ID
 // from the Clerk OAuth flow when the user logs in with Google/Microsoft
-global.userId = "123e4567-e89b-12d3-a456-426614174000";
+const PLACEHOLDER_USER_ID = "fe20476b-c6fc-4949-b37d-ecaeaad40514";
+global.userId = PLACEHOLDER_USER_ID;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -81,7 +84,9 @@ async function verifyPairingCode(code) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         code,
-        device_id: deviceId
+        device_id: deviceId,
+        device_name: deviceName,
+        platform: platform
       })
     });
 

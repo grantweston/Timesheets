@@ -5,6 +5,9 @@ import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { useToast } from '@/app/components/ui/use-toast';
 import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { useUser } from '@clerk/nextjs';
 import {
   Loader2,
   Download,
@@ -14,6 +17,12 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { Progress } from '@/app/components/ui/progress';
+
+// Create Supabase client once (only for realtime, not auth)
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const steps = [
   {
@@ -32,6 +41,7 @@ const steps = [
 
 export default function DesktopPage() {
   const { toast } = useToast();
+  const { user, isLoaded: isUserLoaded } = useUser();
   const [currentStep, setCurrentStep] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -40,8 +50,65 @@ export default function DesktopPage() {
   const [pairingCode, setPairingCode] = useState<string | null>(null);
 
   useEffect(() => {
+    // Redirect to sign in if no user
+    if (isUserLoaded && !user) {
+      window.location.href = '/auth/signin';
+    }
+  }, [isUserLoaded, user]);
+
+  useEffect(() => {
     console.log('Current step changed to:', currentStep);
   }, [currentStep]);
+
+  useEffect(() => {
+    if (!pairingCode) return;
+
+    // Subscribe to changes in the link_codes table
+    const channel = supabase
+      .channel('pairing_status')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'link_codes',
+          filter: `code=eq.${pairingCode}`,
+        },
+        async (
+          payload: RealtimePostgresChangesPayload<{
+            link_code_id: string;
+            user_id: string;
+            device_id: string | null;
+            code: string;
+            used: boolean;
+            expires_at: string;
+            created_at: string;
+            updated_at: string;
+          }>
+        ) => {
+          console.log('Received real-time update:', payload);
+
+          if (payload.eventType === 'UPDATE' && payload.new.used === true) {
+            // Code was marked as used - device successfully paired
+            setIsVerifying(false);
+            setIsVerified(true);
+            toast({
+              title: 'Success!',
+              description: 'Desktop app connected successfully.',
+            });
+
+            // Cleanup subscription
+            channel.unsubscribe();
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription when component unmounts or code changes
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [pairingCode, toast]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -60,9 +127,36 @@ export default function DesktopPage() {
   };
 
   const generatePairingCode = async () => {
-    console.log('generatePairingCode called');
+    console.log('generatePairingCode called with user state:', {
+      isUserLoaded,
+      hasUser: !!user,
+      userId: user?.id,
+    });
+
+    if (!isUserLoaded) {
+      console.log('Blocking due to user loading');
+      toast({
+        title: 'Please wait',
+        description: 'Still initializing...',
+        variant: 'default',
+      });
+      return;
+    }
+
+    if (!user) {
+      console.log('Blocking due to missing user');
+      toast({
+        title: 'Error',
+        description: 'Please log in to generate a pairing code.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('User validated, proceeding with code generation');
     try {
-      console.log('Making API request...');
+      const testUserId = 'fe20476b-c6fc-4949-b37d-ecaeaad40514';
+      console.log('Making API request with user_id:', testUserId);
       const response = await fetch(
         'https://zdaugjexoekzsjxrelee.supabase.co/functions/v1/generate-link-code',
         {
@@ -71,19 +165,25 @@ export default function DesktopPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            user_id: '0f157d4e-2208-467c-a352-0160741baae3',
+            user_id: testUserId,
           }),
         }
       );
 
-      console.log('API response:', response);
+      console.log('API response status:', response.status);
       if (!response.ok) {
-        throw new Error('Failed to generate code');
+        const errorData = await response.json().catch(() => null);
+        console.error('Error response data:', errorData);
+        throw new Error(errorData?.error || 'Failed to generate code');
       }
 
-      const { code } = await response.json();
-      console.log('Received code:', code);
+      const data = await response.json();
+      console.log('Successful response data:', data);
+      const { code } = data;
+
+      console.log('Setting code and updating state:', code);
       setPairingCode(code);
+      setIsVerifying(true);
       toast({
         title: 'Pairing code generated',
         description: `Your code is: ${code}`,
@@ -91,25 +191,16 @@ export default function DesktopPage() {
       console.log('Setting current step to 2');
       setCurrentStep(2);
     } catch (error) {
-      console.error('Error in generatePairingCode:', error);
+      console.error('Detailed error in generatePairingCode:', error);
       toast({
         title: 'Error',
-        description: 'Failed to generate pairing code. Please try again.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Failed to generate pairing code. Please try again.',
         variant: 'destructive',
       });
     }
-  };
-
-  const verifyInstallation = async () => {
-    setIsVerifying(true);
-    // Simulate verification
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsVerifying(false);
-    setIsVerified(true);
-    toast({
-      title: 'Success!',
-      description: 'Desktop app connected successfully.',
-    });
   };
 
   return (
@@ -220,7 +311,7 @@ export default function DesktopPage() {
                         </Alert>
                       )}
                       <Button
-                        onClick={verifyInstallation}
+                        onClick={generatePairingCode}
                         disabled={isVerifying || isVerified}
                         size="lg"
                         className="w-full sm:w-auto"
