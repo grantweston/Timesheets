@@ -2,101 +2,66 @@
 
 import { useSupabase } from '@/app/providers/supabase-provider';
 import { useAuth } from '@clerk/nextjs';
+import { TimeBlock } from '@/types/time-block';
 
 export function useTimeBlockMutations() {
   const { supabase } = useSupabase();
   const { userId: clerkUserId } = useAuth();
 
-  const getSupabaseUserId = async () => {
-    console.log('Getting Supabase user ID for Clerk ID:', clerkUserId);
-    
-    if (!clerkUserId) {
-      console.error('No Clerk user ID found');
-      throw new Error('User not authenticated');
-    }
+  const createTimeBlock = async (block: Partial<TimeBlock>) => {
+    if (!clerkUserId) throw new Error('No user ID found');
 
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError) {
-      console.error('Error fetching user:', userError);
-      throw new Error('Failed to find user');
-    }
-    
-    if (!userData) {
-      console.error('No user found for Clerk ID:', clerkUserId);
-      throw new Error('User not found');
-    }
-
-    console.log('Found Supabase user:', userData);
-    return userData.id;
-  };
-
-  const createTimeBlock = async (block: {
-    task_label: string;
-    start_time: string;
-    end_time: string;
-    is_billable: boolean;
-    project_id?: string | null;
-    classification?: any;
-  }) => {
-    console.log('Creating time block:', block);
-    const userId = await getSupabaseUserId();
+    const newBlock = {
+      ...block,
+      clerk_id: clerkUserId,
+      is_recurring: false,
+      recurrence_pattern: null,
+      classification: {
+        category: block.classification?.category || 'uncategorized',
+        confidence: 1.0
+      }
+    };
 
     const { data, error } = await supabase
       .from('time_blocks')
-      .insert({
-        ...block,
-        user_id: userId,
-      })
+      .insert([newBlock])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating time block:', error);
-      throw error;
-    }
-
-    console.log('Successfully created time block:', data);
+    if (error) throw error;
     return data;
   };
 
-  const updateTimeBlock = async (
-    id: string,
-    block: {
-      task_label?: string;
-      start_time?: string;
-      end_time?: string;
-      is_billable?: boolean;
-      project_id?: string | null;
-      classification?: any;
-    }
-  ) => {
-    console.log('Updating time block:', { id, block });
-    const userId = await getSupabaseUserId();
+  const updateTimeBlock = async (id: string, block: Partial<TimeBlock>) => {
+    if (!clerkUserId) throw new Error('No user ID found');
 
     const { data, error } = await supabase
       .from('time_blocks')
       .update(block)
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('clerk_id', clerkUserId)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating time block:', error);
-      throw error;
-    }
-
-    console.log('Successfully updated time block:', data);
+    if (error) throw error;
     return data;
+  };
+
+  const deleteTimeBlock = async (id: string) => {
+    if (!clerkUserId) throw new Error('No user ID found');
+
+    const { error } = await supabase
+      .from('time_blocks')
+      .delete()
+      .eq('id', id)
+      .eq('clerk_id', clerkUserId);
+
+    if (error) throw error;
   };
 
   return {
     createTimeBlock,
     updateTimeBlock,
+    deleteTimeBlock
   };
 } 

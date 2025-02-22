@@ -3,19 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/app/providers/supabase-provider';
 import { useAuth } from '@clerk/nextjs';
-
-export interface TimeBlock {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  start_time: string;
-  end_time: string;
-  task_label: string;
-  is_billable: boolean;
-  classification: any;
-  created_at: string;
-  updated_at: string | null;
-}
+import { TimeBlock } from '@/types/time-block';
 
 export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
   const { supabase } = useSupabase();
@@ -37,31 +25,21 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
         setLoading(true);
         setError(null);
 
-        console.log('Fetching Supabase user ID for Clerk ID:', clerkUserId);
-        // First, get the Supabase user ID that matches the Clerk user ID
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('clerk_user_id', clerkUserId)
-          .single();
-
-        if (userError) {
-          console.error('Error fetching user:', userError);
-          throw new Error('Failed to find user');
-        }
-
-        if (!userData) {
-          console.error('No user found for Clerk ID:', clerkUserId);
-          throw new Error('User not found');
-        }
-
-        console.log('Found Supabase user:', userData);
-
         // Add date filtering based on period
         const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        // Set to start of day in local timezone
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        // Set to start of week in local timezone
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Set to start of month in local timezone
+        const startOfMonth = new Date(now);
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
 
         let startTime;
         switch (period) {
@@ -77,26 +55,23 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
         }
 
         console.log('Fetching time blocks with params:', {
-          userId: userData.id,
+          clerkUserId,
           period,
-          startTime
+          startTime: startTime.toISOString()
         });
 
-        let query = supabase
+        const { data: timeBlocksData, error: timeBlocksError } = await supabase
           .from('time_blocks')
           .select('*')
-          .eq('user_id', userData.id)
-          .gte('start_time', startTime)
-          .order('start_time', { ascending: false });
-
-        const { data: timeBlocksData, error: timeBlocksError } = await query;
+          .eq('clerk_id', clerkUserId)
+          .gte('start_time', startTime.toISOString())
+          .order('start_time', { ascending: true });
 
         if (timeBlocksError) {
           console.error('Error fetching time blocks:', timeBlocksError);
           throw timeBlocksError;
         }
 
-        console.log('Successfully fetched time blocks:', timeBlocksData?.length || 0, 'blocks found');
         setTimeBlocks(timeBlocksData || []);
       } catch (err: any) {
         console.error('Error in fetchTimeBlocks:', err);
