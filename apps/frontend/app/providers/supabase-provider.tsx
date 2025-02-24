@@ -88,6 +88,45 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
           setTransactionModeSet(true);
           console.log('Transaction mode set successfully');
           
+          // Check if user exists, if not create them
+          console.log('Checking if user exists...');
+          const { data: existingUser } = await authedClient
+            .from('users')
+            .select('user_id')
+            .eq('clerk_user_id', userId)
+            .single();
+
+          if (!existingUser) {
+            console.log('User does not exist, creating...');
+            const { data: newUser, error: createError } = await authedClient
+              .from('users')
+              .insert({
+                clerk_user_id: userId,
+                email: clerkUser.emailAddresses[0]?.emailAddress || null,
+                display_name: clerkUser.firstName 
+                  ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`
+                  : 'New User',
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                integration_statuses: {
+                  outlook: { connected: false, token: null },
+                  gmail: { connected: false, token: null },
+                  docusign: { connected: false, token: null },
+                  stripe: { connected: false, token: null },
+                  quickbooks: { connected: false, token: null },
+                }
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Failed to create user:', createError);
+            } else {
+              console.log('User created successfully:', newUser);
+            }
+          } else {
+            console.log('User exists:', existingUser);
+          }
+
           // Only set the client after transaction mode is set
           setSupabaseClient(authedClient);
           console.log('Setup Timing - Complete:', {
