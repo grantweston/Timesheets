@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/app/providers/supabase-provider';
-import { useAuth } from '@clerk/nextjs';
-import { TimeBlock } from '@/types/time-block';
-import { useUser } from '../../../../app/hooks/use-user';
+import { useUser } from '@/app/hooks/use-user';
+import { TimeBlock, transformDatabaseToUI } from '@/app/types/time-block';
 
 export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
   const { supabase } = useSupabase();
@@ -15,10 +14,8 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
 
   useEffect(() => {
     const fetchTimeBlocks = async () => {
-      console.log('Starting fetchTimeBlocks...', { period, userId: user?.id });
-      
       if (!user?.id) {
-        console.log('No user ID found, returning early');
+        setLoading(false);
         return;
       }
 
@@ -55,12 +52,6 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
             break;
         }
 
-        console.log('Fetching time blocks with params:', {
-          userId: user.id,
-          period,
-          startTime: startTime.toISOString()
-        });
-
         const { data: timeBlocksData, error: timeBlocksError } = await supabase
           .from('time_blocks')
           .select('*')
@@ -69,11 +60,10 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
           .order('start_time', { ascending: true });
 
         if (timeBlocksError) {
-          console.error('Error fetching time blocks:', timeBlocksError);
           throw timeBlocksError;
         }
 
-        setTimeBlocks(timeBlocksData || []);
+        setTimeBlocks(timeBlocksData?.map(transformDatabaseToUI) || []);
       } catch (err: any) {
         console.error('Error in fetchTimeBlocks:', err);
         setError(err.message);
