@@ -20,7 +20,7 @@ import {
 import { Clock, Trash2 } from "lucide-react"
 import { Badge } from "@/app/components/ui/badge"
 import { format } from "date-fns"
-import type { TimeBlock } from "@/types/time-block"
+import { TimeBlock } from "@/types/time-block"
 
 interface TimeBlockDialogProps {
   block: TimeBlock | null
@@ -28,7 +28,7 @@ interface TimeBlockDialogProps {
   onUpdate: (block: TimeBlock) => void
 }
 
-const categoryIcons: Record<TimeBlock["category"], React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   meeting: "👥",
   development: "💻",
   planning: "📋",
@@ -38,15 +38,14 @@ const categoryIcons: Record<TimeBlock["category"], React.ReactNode> = {
 
 export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogProps) {
   const [editedBlock, setEditedBlock] = React.useState<TimeBlock | null>(null)
-  const [newDescription, setNewDescription] = React.useState("")
 
   React.useEffect(() => {
-    setEditedBlock(block)
+    setEditedBlock(block ? { ...block } : null)
   }, [block])
 
   if (!editedBlock) return null
 
-  const totalTime = editedBlock.applications?.reduce((sum, app) => sum + app.timeSpent, 0) || 0
+  const totalTime = editedBlock.classification?.applications?.reduce((sum, app) => sum + app.timeSpent, 0) || 0
 
   const handleInputChange = (field: keyof TimeBlock, value: any) => {
     setEditedBlock((prev) => {
@@ -58,28 +57,15 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
     })
   }
 
-  const handleAddDescription = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newDescription.trim()) return
-
+  const handleClassificationChange = (field: keyof typeof editedBlock.classification, value: any) => {
     setEditedBlock((prev) => {
       if (!prev) return null
       return {
         ...prev,
-        description: [...(prev.description || []), newDescription.trim()],
-      }
-    })
-    setNewDescription("")
-  }
-
-  const handleRemoveDescription = (index: number) => {
-    setEditedBlock((prev) => {
-      if (!prev) return null
-      const newDescription = [...(prev.description || [])]
-      newDescription.splice(index, 1)
-      return {
-        ...prev,
-        description: newDescription,
+        classification: {
+          ...prev.classification,
+          [field]: value,
+        }
       }
     })
   }
@@ -96,7 +82,7 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            {categoryIcons[editedBlock.category]}
+            {categoryIcons[editedBlock.classification.category.toLowerCase()]}
             Edit Time Block
           </DialogTitle>
         </DialogHeader>
@@ -104,28 +90,31 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
         <div className="grid gap-6 py-4">
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="task_label">Title</Label>
               <Input
-                id="title"
-                value={editedBlock.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
+                id="task_label"
+                value={editedBlock.task_label || ''}
+                onChange={(e) => handleInputChange("task_label", e.target.value)}
                 className="font-medium"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="client">Client</Label>
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="client"
-                value={editedBlock.client || ""}
-                onChange={(e) => handleInputChange("client", e.target.value)}
-                placeholder="Enter client name"
+                id="description"
+                value={editedBlock.description || ''}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Enter description"
               />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={editedBlock.category} onValueChange={(value) => handleInputChange("category", value)}>
+              <Select 
+                value={editedBlock.classification.category.toLowerCase()} 
+                onValueChange={(value) => handleClassificationChange("category", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -151,8 +140,8 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
                 <span className="text-sm text-muted-foreground">Should this time be billed to the client?</span>
               </div>
               <Switch
-                checked={editedBlock.billable}
-                onCheckedChange={(checked) => handleInputChange("billable", checked)}
+                checked={editedBlock.is_billable}
+                onCheckedChange={(checked) => handleInputChange("is_billable", checked)}
               />
             </div>
 
@@ -162,46 +151,20 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">Start Time</div>
                   <div className="font-medium">
-                    {format(new Date().setHours(Math.floor(editedBlock.start), (editedBlock.start % 1) * 60), "h:mm a")}
+                    {format(new Date(editedBlock.start_time), "h:mm a")}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Duration</div>
-                  <div className="font-medium">{editedBlock.duration.toFixed(2)} hours</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Work Description</Label>
-              <div className="rounded-lg border bg-muted/50 divide-y">
-                {editedBlock.description?.map((point, index) => (
-                  <div key={index} className="flex items-start gap-2 p-2 group">
-                    <span className="text-primary mt-1">•</span>
-                    <span className="flex-1 text-sm">{point}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveDescription(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="text-sm text-muted-foreground">End Time</div>
+                  <div className="font-medium">
+                    {format(new Date(editedBlock.end_time), "h:mm a")}
                   </div>
-                ))}
-                <form onSubmit={handleAddDescription} className="p-2">
-                  <Input
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Add a description point..."
-                    className="text-sm"
-                  />
-                </form>
+                </div>
               </div>
             </div>
           </div>
 
-          {editedBlock.applications && editedBlock.applications.length > 0 && (
+          {editedBlock.classification?.applications && editedBlock.classification.applications.length > 0 && (
             <>
               <Separator />
 
@@ -211,7 +174,7 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
                   Application Usage
                 </h4>
                 <div className="space-y-4">
-                  {editedBlock.applications.map((app) => (
+                  {editedBlock.classification.applications.map((app) => (
                     <div key={app.name} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <Badge variant="outline">{app.name}</Badge>

@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/app/providers/theme-provider"
 import { ClerkProvider } from '@clerk/nextjs'
 import { SupabaseProvider } from '@/app/providers/supabase-provider'
+import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,6 +28,17 @@ export default function RootLayout({
             <SupabaseProvider>
               {children}
             </SupabaseProvider>
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: 'rgb(var(--background))',
+                  color: 'rgb(var(--foreground))',
+                  border: '1px solid rgb(var(--border))',
+                },
+                className: 'dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700',
+              }}
+            />
           </ThemeProvider>
         </body>
       </html>

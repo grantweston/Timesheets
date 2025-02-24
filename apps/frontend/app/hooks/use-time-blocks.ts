@@ -11,13 +11,35 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // First, get the user's UUID from their clerk ID
+  useEffect(() => {
+    const getUserId = async () => {
+      if (!clerkUserId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id')
+          .eq('clerk_user_id', clerkUserId)
+          .single();
+
+        if (error) throw error;
+        setUserId(data.id);
+      } catch (err) {
+        console.error('Error getting user ID:', err);
+        setError('Failed to get user ID');
+      }
+    };
+
+    getUserId();
+  }, [clerkUserId, supabase]);
 
   useEffect(() => {
     const fetchTimeBlocks = async () => {
-      console.log('Starting fetchTimeBlocks...', { period, clerkUserId });
-      
-      if (!clerkUserId) {
-        console.log('No Clerk user ID found, returning early');
+      if (!userId) {
+        console.log('No user ID found, returning early');
         return;
       }
 
@@ -55,7 +77,7 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
         }
 
         console.log('Fetching time blocks with params:', {
-          clerkUserId,
+          userId,
           period,
           startTime: startTime.toISOString()
         });
@@ -63,7 +85,7 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
         const { data: timeBlocksData, error: timeBlocksError } = await supabase
           .from('time_blocks')
           .select('*')
-          .eq('clerk_id', clerkUserId)
+          .eq('user_id', userId)
           .gte('start_time', startTime.toISOString())
           .order('start_time', { ascending: true });
 
@@ -82,7 +104,7 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
     };
 
     fetchTimeBlocks();
-  }, [supabase, clerkUserId, period]);
+  }, [supabase, userId, period]);
 
   return { timeBlocks, loading, error };
 } 

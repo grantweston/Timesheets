@@ -1,15 +1,128 @@
+'use client';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs"
 import { Card } from "@/app/components/ui/card"
 import { Label } from "@/app/components/ui/label"
 import { Input } from "@/app/components/ui/input"
 import { Button } from "@/app/components/ui/button"
-import { Switch } from "@/app/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Separator } from "@/app/components/ui/separator"
 import { Badge } from "@/app/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Bell, CreditCard, Globe, Lock, Mail, User, Zap } from "lucide-react"
+import { 
+  Mail, 
+  Calendar,
+  FileText,
+  CreditCard,
+  Calculator
+} from "lucide-react"
+import { useUser } from "@/app/hooks/use-user"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { useSupabase } from "@/app/providers/supabase-provider"
+import { useState } from "react"
+import { useUser as useClerkUser } from "@clerk/nextjs";
 
 export default function SettingsPage() {
+  const { user, loading, error } = useUser();
+  const { user: clerkUser } = useClerkUser();
+  const router = useRouter();
+  const { supabase } = useSupabase();
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+
+  // Get email accounts from Clerk
+  const connectedEmails = clerkUser?.emailAddresses || [];
+  const hasGmail = connectedEmails.some(email => email.emailAddress.endsWith('@gmail.com'));
+  const hasOutlook = connectedEmails.some(email => 
+    email.emailAddress.endsWith('@outlook.com') || 
+    email.emailAddress.endsWith('@hotmail.com') || 
+    email.emailAddress.endsWith('@live.com')
+  );
+
+  const handleIntegrationClick = async (integrationKey: string, isConnected: boolean) => {
+    if (isConnected) {
+      try {
+        setIsUpdating(integrationKey);
+        // Show confirmation dialog
+        const confirmed = window.confirm(`Are you sure you want to disconnect ${integrationKey}?`);
+        if (!confirmed) {
+          setIsUpdating(null);
+          return;
+        }
+
+        // Update the integration status in the database
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            integration_statuses: {
+              ...user?.integration_statuses,
+              [integrationKey]: {
+                connected: false,
+                token: null
+              }
+            }
+          })
+          .eq('clerk_user_id', user?.clerk_user_id);
+
+        if (updateError) throw updateError;
+
+        toast.success(`Successfully disconnected ${integrationKey}`);
+        router.refresh();
+      } catch (err) {
+        console.error(`Error disconnecting ${integrationKey}:`, err);
+        toast.error(`Failed to disconnect ${integrationKey}. Please try again.`);
+      } finally {
+        setIsUpdating(null);
+      }
+      return;
+    }
+
+    try {
+      setIsUpdating(integrationKey);
+      // Handle connection based on integration type
+      switch (integrationKey) {
+        case 'docusign':
+          window.location.href = `/api/auth/docusign/connect`;
+          break;
+        case 'stripe':
+          window.location.href = `/api/auth/stripe/connect`;
+          break;
+        case 'quickbooks':
+          window.location.href = `/api/auth/quickbooks/connect`;
+          break;
+        default:
+          throw new Error(`Unknown integration: ${integrationKey}`);
+      }
+    } catch (err) {
+      console.error(`Error connecting ${integrationKey}:`, err);
+      toast.error(`Failed to connect ${integrationKey}. Please try again.`);
+      setIsUpdating(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <div className="text-red-500">
+          {error.message || 'An error occurred while loading user data'}
+        </div>
+        <Button 
+          onClick={() => router.refresh()}
+          className="bg-violet-600 hover:bg-violet-700 text-white"
+        >
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <main className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
@@ -26,18 +139,6 @@ export default function SettingsPage() {
             Profile
           </TabsTrigger>
           <TabsTrigger 
-            value="notifications"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger 
-            value="billing"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Billing
-          </TabsTrigger>
-          <TabsTrigger 
             value="integrations"
             className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
           >
@@ -51,15 +152,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white text-2xl font-semibold">
-                  JD
-                </div>
-                <div>
-                  <Button 
-                    variant="outline" 
-                    className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
-                  >
-                    Change Photo
-                  </Button>
+                  {user?.display_name?.charAt(0) || 'U'}
                 </div>
               </div>
 
@@ -70,7 +163,7 @@ export default function SettingsPage() {
                   <Label htmlFor="name">Name</Label>
                   <Input 
                     id="name" 
-                    defaultValue="John Doe" 
+                    defaultValue={user?.display_name || ''} 
                     className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
                   />
                 </div>
@@ -80,14 +173,14 @@ export default function SettingsPage() {
                   <Input 
                     id="email" 
                     type="email" 
-                    defaultValue="john@example.com" 
+                    defaultValue={user?.email || ''} 
                     className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
                   />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="pst">
+                  <Select defaultValue={user?.timezone || 'UTC'}>
                     <SelectTrigger 
                       id="timezone"
                       className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
@@ -95,10 +188,11 @@ export default function SettingsPage() {
                       <SelectValue placeholder="Select timezone" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pst">Pacific Time (PST)</SelectItem>
-                      <SelectItem value="mst">Mountain Time (MST)</SelectItem>
-                      <SelectItem value="cst">Central Time (CST)</SelectItem>
-                      <SelectItem value="est">Eastern Time (EST)</SelectItem>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -113,146 +207,108 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Notifications Settings */}
-        <TabsContent value="notifications">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive email updates about your activity.</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Notification Preferences</h3>
-                <div className="grid gap-4">
-                  {[
-                    { icon: Bell, label: "Time tracking reminders" },
-                    { icon: Mail, label: "Weekly summary" },
-                    { icon: CreditCard, label: "Billing alerts" },
-                    { icon: User, label: "Team mentions" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                        <span>{item.label}</span>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Billing Settings */}
-        <TabsContent value="billing">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Current Plan</h3>
-                  <p className="text-sm text-muted-foreground">You are currently on the Pro plan.</p>
-                </div>
-                <Badge className="bg-gradient-to-r from-violet-600 to-indigo-600">Pro Plan</Badge>
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Payment Method</h3>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-md border border-zinc-200 dark:border-zinc-800 p-4 flex items-center gap-4">
-                    <CreditCard className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-                    <div>
-                      <p className="font-medium">•••• •••• •••• 4242</p>
-                      <p className="text-sm text-muted-foreground">Expires 12/24</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
-                  >
-                    Update
-                  </Button>
-                </div>
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Billing History</h3>
-                <div className="space-y-2">
-                  {[
-                    { date: "Feb 1, 2024", amount: "$29.00", status: "Paid" },
-                    { date: "Jan 1, 2024", amount: "$29.00", status: "Paid" },
-                  ].map((invoice) => (
-                    <div key={invoice.date} className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="font-medium">{invoice.date}</p>
-                        <p className="text-sm text-muted-foreground">{invoice.amount}</p>
-                      </div>
-                      <Badge variant="secondary" className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300">
-                        {invoice.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
         {/* Integrations Settings */}
         <TabsContent value="integrations">
           <Card className="p-6 space-y-6">
             <div className="space-y-4">
-              {[
-                {
-                  icon: Globe,
-                  name: "Jira",
-                  description: "Link your Jira projects for automatic time tracking.",
-                  connected: true,
-                },
-                {
-                  icon: Lock,
-                  name: "GitHub",
-                  description: "Connect your repositories for development tracking.",
-                  connected: true,
-                },
-                {
-                  icon: Zap,
-                  name: "Slack",
-                  description: "Get notifications and track time directly from Slack.",
-                  connected: false,
-                },
-              ].map((integration) => (
-                <div key={integration.name} className="flex items-start justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full bg-violet-100 dark:bg-violet-900/20 p-2">
-                      <integration.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              {/* Email Accounts Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Email Accounts</h3>
+                <div className="space-y-4">
+                  {connectedEmails.map((email) => (
+                    <div key={email.id} className="flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="rounded-full bg-violet-100 dark:bg-violet-900/20 p-2">
+                          <Mail className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{email.emailAddress}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {email.verification.status === "verified" ? "Verified" : "Unverified"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                        Connected
+                      </Badge>
                     </div>
-                    <div>
-                      <h3 className="font-medium">{integration.name}</h3>
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant={integration.connected ? "outline" : "default"}
-                    className={integration.connected ? 
-                      "hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300" :
-                      "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
-                    }
+                  ))}
+                  <Button
+                    onClick={() => router.push('/user/email-addresses')}
+                    className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
                   >
-                    {integration.connected ? "Manage" : "Connect"}
+                    Add Email Account
                   </Button>
                 </div>
-              ))}
+              </div>
+
+              {/* Other Integrations */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Service Integrations</h3>
+                {[
+                  {
+                    icon: FileText,
+                    name: "DocuSign",
+                    key: "docusign",
+                    description: "Integrate with DocuSign for seamless document signing.",
+                  },
+                  {
+                    icon: CreditCard,
+                    name: "Stripe",
+                    key: "stripe",
+                    description: "Connect Stripe for payment processing and invoicing.",
+                  },
+                  {
+                    icon: Calculator,
+                    name: "QuickBooks",
+                    key: "quickbooks",
+                    description: "Sync your financial data with QuickBooks.",
+                  },
+                ].map((integration) => {
+                  const status = user?.integration_statuses?.[integration.key as keyof typeof user.integration_statuses];
+                  const isConnected = status?.connected || false;
+                  const isUpdatingThis = isUpdating === integration.key;
+
+                  return (
+                    <div key={integration.name} className="flex items-start justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                      <div className="flex items-start gap-4">
+                        <div className="rounded-full bg-violet-100 dark:bg-violet-900/20 p-2">
+                          <integration.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{integration.name}</h3>
+                            {isConnected && (
+                              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                                Connected
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{integration.description}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant={isConnected ? "outline" : "default"}
+                        className={isConnected ? 
+                          "hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300" :
+                          "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
+                        }
+                        onClick={() => handleIntegrationClick(integration.key, isConnected)}
+                        disabled={isUpdatingThis}
+                      >
+                        {isUpdatingThis ? (
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                            {isConnected ? "Disconnecting..." : "Connecting..."}
+                          </div>
+                        ) : (
+                          isConnected ? "Disconnect" : "Connect"
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </Card>
         </TabsContent>
