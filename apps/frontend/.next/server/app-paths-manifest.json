@@ -5,7 +5,7 @@
   "/onboarding/profile/page": "app/onboarding/profile/page.js",
   "/onboarding/billing/page": "app/onboarding/billing/page.js",
   "/onboarding/integrations/page": "app/onboarding/integrations/page.js",
-  "/onboarding/engagement-letters/page": "app/onboarding/engagement-letters/page.js",
   "/onboarding/non-billable/page": "app/onboarding/non-billable/page.js",
+  "/onboarding/engagement-letters/page": "app/onboarding/engagement-letters/page.js",
   "/onboarding/desktop/page": "app/onboarding/desktop/page.js"
 }
