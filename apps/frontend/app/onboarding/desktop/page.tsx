@@ -24,6 +24,8 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const TEST_USER_ID = 'fe20476b-c6fc-4949-b37d-ecaeaad40514';
+
 const steps = [
   {
     title: 'Download',
@@ -61,52 +63,147 @@ export default function DesktopPage() {
   }, [currentStep]);
 
   useEffect(() => {
-    if (!pairingCode) return;
+    if (!pairingCode) {
+      console.log('No pairing code yet, skipping subscription setup');
+      return;
+    }
 
-    // Subscribe to changes in the link_codes table
-    const channel = supabase
-      .channel('pairing_status')
+    console.log('Setting up Supabase subscription for code:', pairingCode);
+
+    // Subscribe to ALL database changes
+    const allChangesChannel = supabase
+      .channel('any_changes')
+      .on('system', { event: '*' }, (e: any) => {
+        console.log('🔌 System event:', e);
+      })
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
-          table: 'link_codes',
-          filter: `code=eq.${pairingCode}`,
         },
-        async (
-          payload: RealtimePostgresChangesPayload<{
-            link_code_id: string;
-            user_id: string;
-            device_id: string | null;
-            code: string;
-            used: boolean;
-            expires_at: string;
-            created_at: string;
-            updated_at: string;
-          }>
-        ) => {
-          console.log('Received real-time update:', payload);
-
-          if (payload.eventType === 'UPDATE' && payload.new.used === true) {
-            // Code was marked as used - device successfully paired
-            setIsVerifying(false);
-            setIsVerified(true);
-            toast({
-              title: 'Success!',
-              description: 'Desktop app connected successfully.',
-            });
-
-            // Cleanup subscription
-            channel.unsubscribe();
-          }
+        (payload) => {
+          console.log('🌍 DEBUG: Received INSERT:', payload);
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+        },
+        (payload) => {
+          console.log('🌍 DEBUG: Received UPDATE:', payload);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+        },
+        (payload) => {
+          console.log('🌍 DEBUG: Received DELETE:', payload);
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('🌍 General subscription status:', status, err || '');
+        if (err) {
+          console.error('Subscription error:', err);
+        }
+      });
+
+    // Log the Supabase connection state
+    console.log('Supabase client state:', {
+      realtime: supabase.realtime.connectionState,
+      channels: supabase.getChannels(),
+    });
+
+    // Subscribe to specific code changes - no filter, we'll do it in the callback
+    const channel = supabase
+      .channel('pairing_status')
+      .on('system', { event: '*' }, (e: any) => {
+        console.log('🔌 Pairing channel system event:', e);
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'link_codes',
+        },
+        (payload) => {
+          console.log('🔍 DEBUG: Received link_codes INSERT:', {
+            code: payload.new?.code,
+            matches: payload.new?.code === pairingCode,
+            pairingCode,
+            payload,
+          });
+          handleCodeMatch(payload);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'link_codes',
+        },
+        (payload) => {
+          console.log('🔍 DEBUG: Received link_codes UPDATE:', {
+            code: payload.new?.code,
+            matches: payload.new?.code === pairingCode,
+            pairingCode,
+            payload,
+          });
+          handleCodeMatch(payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log('Supabase subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          // Query to check what rows exist with our code
+          supabase
+            .from('link_codes')
+            .select('code, used')
+            .eq('code', pairingCode)
+            .then((result) => {
+              console.log('🔎 Current rows with this code:', result);
+            });
+
+          console.log(
+            '✅ Subscribed to link_codes INSERT and UPDATE events. Will filter for:',
+            pairingCode
+          );
+        }
+      });
+
+    // Helper function to handle code matches
+    const handleCodeMatch = (payload: any) => {
+      if (payload.new?.code === pairingCode) {
+        console.log('✅ Found matching code!');
+
+        if (
+          payload.new.used === true ||
+          payload.new.used === 'TRUE' ||
+          payload.new.used === 't'
+        ) {
+          console.log('Code marked as used, updating UI...');
+          setIsVerifying(false);
+          setIsVerified(true);
+          toast({
+            title: 'Success!',
+            description: 'Desktop app connected successfully.',
+          });
+        }
+      }
+    };
 
     // Cleanup subscription when component unmounts or code changes
     return () => {
+      console.log('Cleaning up Supabase subscriptions');
       channel.unsubscribe();
+      allChangesChannel.unsubscribe();
     };
   }, [pairingCode, toast]);
 

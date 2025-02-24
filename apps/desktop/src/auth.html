@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TimeTrack AI - Link Device</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: white;
+      transition: opacity 0.4s ease-in-out;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    .code-input {
+      display: flex;
+      gap: 8px;
+      margin: 2rem 0;
+    }
+
+    .code-input input {
+      width: 40px;
+      height: 48px;
+      font-size: 24px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .code-input input:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .submit-btn {
+      background: #7c3aed;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .error {
+      color: #dc2626;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Link Your Device</h1>
+    <p>Enter the 6-digit code shown in your web dashboard</p>
+    
+    <div class="code-input">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+    </div>
+
+    <button class="submit-btn" disabled>Link Device</button>
+    <p class="error">Invalid code. Please try again.</p>
+  </div>
+
+  <script>
+    const inputs = document.querySelectorAll('input');
+    const submitBtn = document.querySelector('.submit-btn');
+    const errorMsg = document.querySelector('.error');
+
+    inputs.forEach((input, index) => {
+      // Prevent focus on boxes unless previous ones are filled
+      input.addEventListener('focus', (e) => {
+        const previousInputsFilled = [...inputs]
+          .slice(0, index)
+          .every(input => input.value.length === 1);
+
+        if (!previousInputsFilled && index > 0) {
+          e.preventDefault();
+          inputs[[...inputs].findIndex(input => !input.value)].focus();
+        }
+      });
+
+      input.addEventListener('input', (e) => {
+        // Only allow digits
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = value;
+
+        if (value.length === 1 && index < inputs.length - 1) {
+          inputs[index + 1].focus();
+        }
+        
+        checkComplete();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        // Prevent typing in middle boxes if previous ones are empty
+        const previousInputsFilled = [...inputs]
+          .slice(0, index)
+          .every(input => input.value.length === 1);
+
+        if (!previousInputsFilled && index > 0 && e.key !== 'Backspace') {
+          e.preventDefault();
+          inputs[0].focus();
+          return;
+        }
+
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          inputs[index - 1].focus();
+        }
+      });
+
+      // Prevent paste except in first input
+      input.addEventListener('paste', (e) => {
+        if (index !== 0) {
+          e.preventDefault();
+          return;
+        }
+        
+        // Handle paste in first input
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = paste.replace(/[^0-9]/g, '').slice(0, 6).split('');
+        
+        digits.forEach((digit, i) => {
+          if (i < inputs.length) {
+            inputs[i].value = digit;
+          }
+        });
+        
+        if (digits.length > 0) {
+          inputs[Math.min(digits.length, inputs.length - 1)].focus();
+        }
+        
+        checkComplete();
+      });
+    });
+
+    function checkComplete() {
+      const code = [...inputs].map(input => input.value).join('');
+      submitBtn.disabled = code.length !== 6;
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      const code = [...inputs].map(input => input.value).join('');
+      try {
+        submitBtn.disabled = true;
+        const result = await window.electronAPI.verifyDeviceCode(code);
+        
+        if (result.success) {
+          // Fade out and close the window
+          document.body.style.opacity = 0;
+          setTimeout(() => window.electronAPI.closeAuthWindow(), 400);
+        } else {
+          throw new Error(result.error || 'Invalid code');
+        }
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.style.display = 'block';
+        inputs.forEach(input => input.value = '');
+        inputs[0].focus();
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html> 
