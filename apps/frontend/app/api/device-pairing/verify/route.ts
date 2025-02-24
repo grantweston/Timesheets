@@ -1,12 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const { code, deviceName } = await req.json();
+  console.log('Device pairing request:', { code, deviceName });
   
   try {
     // Find valid pairing code
@@ -18,8 +15,11 @@ export async function POST(req: Request) {
       .single();
 
     if (pairingError || !pairingData) {
+      console.log('Invalid or expired pairing code:', { code, error: pairingError });
       return NextResponse.json({ success: false }, { status: 400 });
     }
+
+    console.log('Valid pairing code found:', { userId: pairingData.user_id });
 
     // Register device
     await supabase
@@ -42,13 +42,18 @@ export async function POST(req: Request) {
       .update({ used: true })
       .eq('code', code);
 
+    console.log('Device paired successfully:', { 
+      userId: pairingData.user_id, 
+      deviceName 
+    });
+
     return NextResponse.json({ 
       success: true,
       userId: pairingData.user_id
     });
 
   } catch (error) {
-    console.error('Verification error:', error);
+    console.error('Device pairing failed:', error);
     return NextResponse.json(
       { error: 'Failed to verify code' },
       { status: 500 }

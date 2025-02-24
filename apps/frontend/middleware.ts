@@ -1,55 +1,35 @@
-import { authMiddleware } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { clerkClient } from '@clerk/nextjs/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-// This example protects all routes including api/trpc routes
-// Please edit this to allow other routes to be public as needed.
-// See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your middleware
-export default authMiddleware({
-  // Routes that can be accessed while signed out
-  publicRoutes: ["/"],
-  // Routes that can always be accessed, and have
-  // no authentication information
-  ignoredRoutes: ["/api/webhook"],
-  async afterAuth(auth, req) {
-    // Allow public routes
-    if (auth.isPublicRoute) {
-      return NextResponse.next();
+export async function middleware(req: NextRequest) {
+  try {
+    const res = NextResponse.next()
+    const supabase = createMiddlewareClient({ req, res })
+
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Unprotected routes
+    const publicRoutes = ['/login', '/signup', '/forgot-password', '/auth/callback']
+    const isPublicRoute = publicRoutes.includes(req.nextUrl.pathname)
+
+    if (!session && !isPublicRoute) {
+      return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    // Handle users who aren't authenticated
-    if (!auth.userId) {
-      return NextResponse.redirect(new URL('/sign-in', req.url));
+    if (session && isPublicRoute && req.nextUrl.pathname !== '/auth/callback') {
+      return NextResponse.redirect(new URL('/', req.url))
     }
 
-    // Only check onboarding status for dashboard routes
-    if (req.nextUrl.pathname.startsWith('/dashboard')) {
-      try {
-        const user = await clerkClient.users.getUser(auth.userId);
-        const hasCompletedOnboarding = user.unsafeMetadata.hasCompletedOnboarding;
-
-        if (!hasCompletedOnboarding) {
-          return NextResponse.redirect(new URL('/onboarding/desktop', req.url));
-        }
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
-        return NextResponse.next();
-      }
-    }
-
-    return NextResponse.next();
+    return res
+  } catch (error) {
+    console.error('Middleware error:', error)
+    return NextResponse.redirect(new URL('/login', req.url))
   }
-});
+}
 
-// Stop Middleware running on static files and public folder
 export const config = {
   matcher: [
-    // Exclude files with extensions like images, videos, fonts, etc.
-    "/((?!.*\\.[\\w]+$|_next).*)",
-    // Include root route
-    "/",
-    // Include /api routes
-    "/(api|trpc)(.*)"
-  ]
-}; 
+    '/((?!api|_next/static|_next/image|favicon.ico|images).*)',
+  ],
+} 
