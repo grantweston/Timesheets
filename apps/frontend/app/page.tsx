@@ -136,7 +136,14 @@ export default async function Home() {
           <div className="flex items-center gap-4">
             {userId ? (
               <>
-                <OnboardingStatus />
+                <Link href="/dashboard">
+                  <Button
+                    variant="ghost"
+                    className="hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Dashboard
+                  </Button>
+                </Link>
                 <SupabaseButton />
               </>
             ) : (
@@ -189,18 +196,12 @@ export default async function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                {!userId ? (
-                  <Link href="/login">
-                    <Button
-                      size="lg"
-                      className="w-full sm:w-auto gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/25"
-                    >
-                      Start Free Trial <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                ) : (
-                  <OnboardingButton />
-                )}
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/25"
+                >
+                  Start Free Trial <ArrowRight className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="outline"
                   size="lg"

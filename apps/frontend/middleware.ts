@@ -9,16 +9,16 @@ export async function middleware(req: NextRequest) {
 
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Unprotected routes
-    const publicRoutes = ['/login', '/signup', '/forgot-password', '/auth/callback']
+    // Unprotected routes that don't require auth
+    const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/auth/callback']
     const isPublicRoute = publicRoutes.includes(req.nextUrl.pathname)
 
-    if (!session && !isPublicRoute) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
+    // Protected routes that require auth
+    const protectedRoutes = ['/dashboard', '/settings', '/onboarding']
+    const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
-    if (session && isPublicRoute && req.nextUrl.pathname !== '/auth/callback') {
-      return NextResponse.redirect(new URL('/', req.url))
+    if (!session && isProtectedRoute) {
+      return NextResponse.redirect(new URL('/login', req.url))
     }
 
     return res
