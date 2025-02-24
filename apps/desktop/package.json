@@ -1,0 +1,32 @@
+{
+  "name": "captureapp",
+  "version": "1.0.0",
+  "description": "Electron desktop app for the AI timesheets product. ",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "build": "electron-builder build",
+    "build:mac": "electron-builder build --mac"
+  },
+  "author": "mvp",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "canvas": "^3.1.0"
+  },
+  "build": {
+    "appId": "com.mvp.captureapp",
+    "productName": "CaptureApp",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.icns"
+    }
+  }
+}
