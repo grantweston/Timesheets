@@ -2,14 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { useAuth, useUser } from '@clerk/nextjs';
-import { jwtDecode } from 'jwt-decode';
-
-interface CustomJwtPayload {
-  role?: string;
-  aud?: string;
-  sub?: string;
-}
+import { useAuth } from '@clerk/nextjs';
 
 interface SupabaseContext {
   supabase: SupabaseClient;
@@ -18,8 +11,7 @@ interface SupabaseContext {
 const SupabaseContext = createContext<SupabaseContext | undefined>(undefined);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
-  const { getToken, userId } = useAuth();
-  const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const [supabase] = useState(() => {
     console.log('🔍 Creating Supabase client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     return createClient(
@@ -30,110 +22,103 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
           persistSession: false,
           autoRefreshToken: false,
           detectSessionInUrl: false
+        },
+        global: {
+          headers: {
+            // We'll set the Authorization header dynamically in the useEffect
+          }
         }
       }
     );
   });
 
   useEffect(() => {
-    const ensureUserExists = async () => {
-      console.log('🔍 ensureUserExists called with userId:', userId, 'clerkUser:', !!clerkUser);
-      
-      if (!userId || !clerkUser) {
-        console.log('❌ No Clerk user data available');
-        return;
-      }
+    let isActive = true;
+    // Store the original fetch for restoration later
+    const originalFetch = window.fetch;
+    let fetchModified = false;
 
-      console.log('✅ Starting auth flow...', { 
-        hasUserId: !!userId, 
-        hasClerkUser: !!clerkUser,
-        clerkUserId: userId,
-        clerkUserEmail: clerkUser?.emailAddresses[0]?.emailAddress
-      });
-
+    const setupSupabaseAuth = async () => {
       try {
-        // Get JWT token from Clerk for sub claim extraction
-        console.log('🔍 Getting token from Clerk with template "supabase"');
+        // Get JWT token from Clerk for Supabase
+        console.log('🔍 Getting token from Clerk for Supabase auth');
         const token = await getToken({ template: 'supabase' });
+        
         if (!token) {
-          console.log('❌ No token available from Clerk');
+          console.log('❌ No token available from Clerk for Supabase auth');
           return;
         }
-        console.log('✅ Received token from Clerk:', token.substring(0, 20) + '...');
-
-        // Extract sub claim from JWT
-        let subId: string | null = null;
-        try {
-          console.log('🔍 Decoding JWT token');
-          const decoded = jwtDecode<CustomJwtPayload>(token);
-          console.log('✅ Decoded JWT token:', decoded);
-          subId = decoded.sub || null;
-          console.log('🔍 Extracted subId:', subId);
-        } catch (error) {
-          console.error('❌ Error decoding JWT:', error);
+        
+        console.log('✅ Received token from Clerk');
+        
+        if (isActive) {
+          // Set the Auth session in the Supabase client
+          console.log('🔍 Setting Supabase auth session with Clerk token');
+          
+          const { error } = await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token // Using the same token for both since Clerk doesn't provide a refresh token
+          });
+          
+          if (error) {
+            console.log('❌ Error setting session directly, using authorization header method');
+            
+            // Use fetch interceptor to add the authorization header to all requests
+            // This is a more reliable approach that works with RLS
+            window.fetch = function(input: RequestInfo | URL, init?: RequestInit) {
+              const url = input.toString();
+              
+              // Only intercept Supabase API requests
+              if (url.includes(process.env.NEXT_PUBLIC_SUPABASE_URL!)) {
+                init = init || {};
+                init.headers = init.headers || {};
+                
+                // Set the Authorization header with the JWT token
+                Object.assign(init.headers, {
+                  Authorization: `Bearer ${token}`
+                });
+              }
+              
+              return originalFetch(input, init);
+            } as typeof originalFetch;
+            
+            fetchModified = true;
+            console.log('✅ Set up fetch interceptor for Supabase requests');
+          } else {
+            console.log('✅ Successfully set Supabase auth session');
+          }
+          
+          // Test query to verify direct access works
+          console.log('🔍 Testing direct access to users table');
+          const { data, error: queryError } = await supabase
+            .from('users')
+            .select('clerk_user_id, email')
+            .limit(1);
+            
+          if (queryError) {
+            console.log('❌ Test query failed:', queryError.message);
+          } else {
+            console.log('✅ Test query succeeded! Direct access is working');
+            if (data && data.length > 0) {
+              console.log('✅ Found user data:', data.length > 0 ? 'Yes' : 'No');
+            }
+          }
         }
-
-        // Always use API route for user creation
-        console.log('🔍 Using API route for user creation');
-        await tryApiUserCreation(userId, clerkUser, subId);
       } catch (error) {
-        console.error('❌ Error in ensureUserExists:', error);
+        console.error('❌ Error in setupSupabaseAuth:', error);
       }
     };
 
-    async function tryApiUserCreation(clerkUserId: string, user: any, subId: string | null) {
-      console.log('🔍 Trying user creation via API route');
-      
-      try {
-        const defaultIntegrationStatuses = {
-          outlook: { connected: false, token: null },
-          gmail: { connected: false, token: null },
-          docusign: { connected: false, token: null },
-          stripe: { connected: false, token: null },
-          quickbooks: { connected: false, token: null },
-        };
-        
-        const userData = {
-          clerk_user_id: clerkUserId,
-          clerk_sub_id: subId,
-          email: user.emailAddresses[0]?.emailAddress || null,
-          display_name: user.firstName && user.lastName 
-            ? `${user.firstName} ${user.lastName}`
-            : user.firstName || user.lastName || null,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-          is_desktop_setup: false,
-          integration_statuses: defaultIntegrationStatuses
-        };
-        
-        console.log('🔍 Sending API request to create user with data:', userData);
-        
-        const response = await fetch('/api/auth/create-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
-        });
-        
-        console.log('🔍 API response status:', response.status);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('❌ API user creation failed:', errorData);
-          console.log('❌ API error details:', JSON.stringify(errorData));
-        } else {
-          const data = await response.json();
-          console.log('✅ API user creation succeeded:', data);
-        }
-      } catch (error) {
-        console.error('❌ Error in API user creation:', error);
-        console.log('❌ API error details:', error instanceof Error ? error.message : String(error));
-      }
-    }
+    setupSupabaseAuth();
 
-    console.log('🔍 SupabaseProvider useEffect triggered');
-    ensureUserExists();
-  }, [getToken, userId, clerkUser]);
+    return () => {
+      isActive = false;
+      // If we modified fetch, we should restore it
+      if (fetchModified) {
+        window.fetch = originalFetch;
+      }
+    };
+  }, [getToken, supabase]);
 
   return (
     <SupabaseContext.Provider value={{ supabase }}>

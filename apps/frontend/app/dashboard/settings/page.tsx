@@ -56,6 +56,17 @@ function IntegrationRow({
 
 export default function SettingsPage() {
   const { user, loading, error } = useUser();
+  
+  console.log('🔍 SettingsPage render state:', {
+    hasUser: !!user,
+    loading,
+    hasError: !!error,
+    userData: user ? {
+      clerk_user_id: user.clerk_user_id,
+      display_name: user.display_name,
+      integration_statuses: user.integration_statuses
+    } : null
+  });
 
   if (loading) {
     return (
@@ -74,6 +85,7 @@ export default function SettingsPage() {
   }
 
   if (error) {
+    console.error('❌ SettingsPage error:', error);
     return (
       <main className="flex w-full flex-col gap-8">
         <div className="flex flex-col gap-2">
@@ -90,6 +102,7 @@ export default function SettingsPage() {
   }
 
   if (!user) {
+    console.warn('⚠️ SettingsPage: No user data found');
     return (
       <main className="flex w-full flex-col gap-8">
         <div className="flex flex-col gap-2">
@@ -105,6 +118,8 @@ export default function SettingsPage() {
     );
   }
 
+  console.log('✅ SettingsPage: User data received, rendering settings');
+  
   // Ensure integration_statuses exists to prevent errors
   const integrationStatuses = user.integration_statuses || {
     docusign: { connected: false },

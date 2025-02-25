@@ -1,100 +1,123 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSupabase } from '@/app/providers/supabase-provider';
 import { useAuth } from '@clerk/nextjs';
 
-interface IntegrationToken {
-  access_token?: string;
-  refresh_token?: string;
-  expires_at?: string;
-  [key: string]: any;
-}
-
-interface IntegrationStatus {
-  connected: boolean;
-  token: IntegrationToken | null;
-}
-
-interface IntegrationStatuses {
-  outlook: IntegrationStatus;
-  gmail: IntegrationStatus;
-  docusign: IntegrationStatus;
-  stripe: IntegrationStatus;
-  quickbooks: IntegrationStatus;
-}
-
-interface User {
+// Define the User type
+export type User = {
   id: string;
+  email: string;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
   clerk_user_id: string;
-  clerk_sub_id?: string;
-  display_name?: string;
-  email?: string;
-  timezone?: string;
-  is_desktop_setup: boolean;
-  integration_statuses: IntegrationStatuses;
-  created_at?: string;
-  updated_at?: string;
-}
+  onboarded: boolean;
+  clerk_sub_id: string | null;
+  integration_statuses: {
+    google_calendar?: {
+      status: 'connected' | 'disconnected' | 'error';
+      last_sync?: string;
+      error?: string;
+    };
+    calendly?: {
+      status: 'connected' | 'disconnected' | 'error';
+      last_sync?: string;
+      error?: string;
+    };
+  } | null;
+};
 
-export function useUser() {
-  const { supabase } = useSupabase();
-  const { userId: clerkUserId } = useAuth();
+export const useUser = () => {
+  const { isLoaded, isSignedIn } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1500; // 1.5 seconds
+    let retryCount = 0;
+
     const fetchUser = async () => {
-      if (!clerkUserId) {
-        setLoading(false);
+      console.log('🔍 useUser: Fetching user data from API route');
+      if (!isLoaded || !isSignedIn) {
+        console.log('⏳ useUser: Auth not loaded or user not signed in yet, waiting...');
+        setLoading(true);
         return;
       }
 
       try {
-        const { data, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('clerk_user_id', clerkUserId)
-          .single();
-
-        if (userError) {
-          console.error('Error fetching user:', userError);
-          throw userError;
+        console.log('🔍 useUser: Starting API fetch for user data');
+        const response = await fetch('/api/auth/get-user');
+        console.log(`✅ useUser: API response status: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ useUser: API error: ${response.status} - ${errorText}`);
+          
+          if (response.status === 404) {
+            console.log('⚠️ useUser: User not found (404)');
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          
+          throw new Error(`API error: ${response.status} - ${errorText}`);
         }
-
-        // Ensure integration_statuses has default structure if null
-        const defaultIntegrationStatuses: IntegrationStatuses = {
-          outlook: { connected: false, token: null },
-          gmail: { connected: false, token: null },
-          docusign: { connected: false, token: null },
-          stripe: { connected: false, token: null },
-          quickbooks: { connected: false, token: null },
-        };
-
-        const userData = {
-          ...data,
-          integration_statuses: data.integration_statuses || defaultIntegrationStatuses,
-        };
-
-        // Only log on successful user fetch
-        console.log('User data loaded:', {
-          id: userData.id,
-          clerk_user_id: userData.clerk_user_id,
-          email: userData.email
-        });
-
+        
+        const data = await response.json();
+        console.log('✅ useUser: API data received:', data ? 'data exists' : 'data is null/empty');
+        
+        if (!data.user) {
+          console.log('⚠️ useUser: No user data in API response');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Process the user data
+        const userData = data.user;
+        
+        // Ensure integration_statuses has a default structure if null
+        if (userData.integration_statuses === null) {
+          userData.integration_statuses = {
+            google_calendar: { status: 'disconnected' },
+            calendly: { status: 'disconnected' }
+          };
+        }
+        
+        console.log('✅ useUser: Setting user state with data');
         setUser(userData);
+        setError(null);
+        setLoading(false);
       } catch (err: any) {
-        console.error('Error in fetchUser:', err.message);
-        setError(err.message);
-      } finally {
+        console.error('❌ useUser: Error fetching user:', err);
+        
+        // Retry logic
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.log(`⏳ useUser: Retrying fetch (${retryCount}/${MAX_RETRIES}) in ${RETRY_DELAY}ms`);
+          
+          setTimeout(() => {
+            fetchUser();
+          }, RETRY_DELAY);
+          return;
+        }
+        
+        console.error(`❌ useUser: Max retries (${MAX_RETRIES}) reached, giving up`);
+        setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
       }
     };
 
-    fetchUser();
-  }, [clerkUserId, supabase]);
+    if (isLoaded && isSignedIn) {
+      fetchUser();
+    } else if (isLoaded && !isSignedIn) {
+      console.log('✅ useUser: User is not signed in, setting user to null');
+      setUser(null);
+      setLoading(false);
+    }
+  }, [isLoaded, isSignedIn]);
 
   return { user, loading, error };
-} 
+}; 
