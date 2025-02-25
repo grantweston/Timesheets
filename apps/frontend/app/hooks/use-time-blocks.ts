@@ -14,7 +14,14 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
 
   useEffect(() => {
     const fetchTimeBlocks = async () => {
-      if (!user?.id) {
+      console.log('useTimeBlocks: Starting fetch with user:', {
+        hasUser: !!user,
+        userId: user?.user_id,
+        period
+      });
+      
+      if (!user?.user_id) {
+        console.log('useTimeBlocks: No user ID found, returning early');
         setLoading(false);
         return;
       }
@@ -25,6 +32,7 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
 
         // Add date filtering based on period
         const now = new Date();
+        
         // Set to start of day in local timezone
         const startOfDay = new Date(now);
         startOfDay.setHours(0, 0, 0, 0);
@@ -52,18 +60,62 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
             break;
         }
 
+        console.log('useTimeBlocks: Date range:', {
+          now: now.toISOString(),
+          startTime: startTime.toISOString(),
+          period
+        });
+
+        // First, let's check if we have any time blocks at all for this user
+        const { data: allBlocks, error: countError } = await supabase
+          .from('time_blocks')
+          .select('time_block_id')
+          .eq('user_id', user.user_id);
+
+        console.log('useTimeBlocks: Total blocks for user:', {
+          count: allBlocks?.length || 0,
+          error: countError
+        });
+
         const { data: timeBlocksData, error: timeBlocksError } = await supabase
           .from('time_blocks')
-          .select('*')
-          .eq('user_id', user.id)
+          .select(`
+            *,
+            client:clients (
+              client_id,
+              name,
+              billing_rate,
+              email,
+              status
+            )
+          `)
+          .eq('user_id', user.user_id)
           .gte('start_time', startTime.toISOString())
           .order('start_time', { ascending: true });
+
+        console.log('useTimeBlocks: Query result:', { 
+          success: !timeBlocksError,
+          dataLength: timeBlocksData?.length || 0,
+          error: timeBlocksError,
+          firstBlock: timeBlocksData?.[0],
+          query: {
+            userId: user.user_id,
+            startTime: startTime.toISOString()
+          }
+        });
 
         if (timeBlocksError) {
           throw timeBlocksError;
         }
 
-        setTimeBlocks(timeBlocksData?.map(transformDatabaseToUI) || []);
+        const transformedBlocks = timeBlocksData?.map(transformDatabaseToUI) || [];
+        console.log('useTimeBlocks: Final blocks:', {
+          originalLength: timeBlocksData?.length || 0,
+          transformedLength: transformedBlocks.length,
+          sampleBlock: transformedBlocks[0] || null
+        });
+
+        setTimeBlocks(transformedBlocks);
       } catch (err: any) {
         console.error('Error in fetchTimeBlocks:', err);
         setError(err.message);
@@ -73,7 +125,7 @@ export function useTimeBlocks(period: 'today' | 'week' | 'month' = 'today') {
     };
 
     fetchTimeBlocks();
-  }, [supabase, user?.id, period]);
+  }, [supabase, user?.user_id, period]);
 
   return { timeBlocks, loading, error };
 } 

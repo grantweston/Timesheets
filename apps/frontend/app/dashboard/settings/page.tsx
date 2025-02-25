@@ -105,6 +105,15 @@ export default function SettingsPage() {
     );
   }
 
+  // Ensure integration_statuses exists to prevent errors
+  const integrationStatuses = user.integration_statuses || {
+    docusign: { connected: false },
+    quickbooks: { connected: false },
+    stripe: { connected: false },
+    gmail: { connected: false },
+    outlook: { connected: false }
+  };
+
   return (
     <main className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
@@ -139,17 +148,17 @@ export default function SettingsPage() {
               <IntegrationRow 
                 name="DocuSign"
                 description="Connect to automatically generate and send engagement letters for signature"
-                connected={user.integration_statuses.docusign.connected}
+                connected={integrationStatuses.docusign?.connected || false}
               />
               <IntegrationRow 
                 name="QuickBooks"
                 description="Sync your time entries and invoices with QuickBooks Online"
-                connected={user.integration_statuses.quickbooks.connected}
+                connected={integrationStatuses.quickbooks?.connected || false}
               />
               <IntegrationRow 
                 name="Stripe"
                 description="Process payments and manage subscriptions"
-                connected={user.integration_statuses.stripe.connected}
+                connected={integrationStatuses.stripe?.connected || false}
               />
             </div>
           </SettingsSection>

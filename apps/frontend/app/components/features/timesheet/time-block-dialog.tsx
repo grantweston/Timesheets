@@ -17,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select"
-import { Clock, Trash2 } from "lucide-react"
+import { Clock, Trash2, DollarSign } from "lucide-react"
 import { Badge } from "@/app/components/ui/badge"
 import { format } from "date-fns"
-import { TimeBlock, categoryColors } from "@/app/types/time-block"
+import { TimeBlock, Client, categoryColors } from "@/app/types/time-block"
+import { useSupabase } from "@/app/providers/supabase-provider"
 
 interface TimeBlockDialogProps {
   block: TimeBlock | null
@@ -39,10 +40,28 @@ const categoryIcons: Record<string, React.ReactNode> = {
 export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogProps) {
   const [editedBlock, setEditedBlock] = React.useState<TimeBlock | null>(null)
   const [newDescription, setNewDescription] = React.useState("")
+  const [clients, setClients] = React.useState<Client[]>([])
+  const { supabase } = useSupabase()
 
   React.useEffect(() => {
     setEditedBlock(block)
   }, [block])
+
+  React.useEffect(() => {
+    const fetchClients = async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('status', 'active')
+        .order('name')
+
+      if (!error && data) {
+        setClients(data)
+      }
+    }
+
+    fetchClients()
+  }, [supabase])
 
   if (!editedBlock) return null
 
@@ -54,6 +73,18 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
       return {
         ...prev,
         [field]: value,
+      }
+    })
+  }
+
+  const handleClientChange = (clientId: string) => {
+    const selectedClient = clients.find(c => c.client_id === clientId)
+    setEditedBlock((prev) => {
+      if (!prev) return null
+      return {
+        ...prev,
+        client_id: clientId,
+        client: selectedClient
       }
     })
   }
@@ -100,6 +131,36 @@ export function TimeBlockDialog({ block, onClose, onUpdate }: TimeBlockDialogPro
                 onChange={(e) => handleInputChange("time_block_label", e.target.value)}
                 className="font-medium"
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="client">Client</Label>
+              <Select value={editedBlock.client_id} onValueChange={handleClientChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Select a client</SelectLabel>
+                    {clients.map((client) => (
+                      <SelectItem key={client.client_id} value={client.client_id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{client.name}</span>
+                          <span className="text-muted-foreground text-sm">
+                            ${client.billing_rate}/hr
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {editedBlock.client && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Billing rate: ${editedBlock.client.billing_rate}/hr</span>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">

@@ -25,8 +25,9 @@ interface IntegrationStatuses {
 }
 
 interface User {
-  user_id: string;
+  id: string;
   clerk_user_id: string;
+  clerk_sub_id?: string;
   display_name?: string;
   email?: string;
   timezone?: string;
@@ -37,53 +38,28 @@ interface User {
 }
 
 export function useUser() {
-  console.log('=== USE USER HOOK START ===');
   const { supabase } = useSupabase();
   const { userId: clerkUserId } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  console.log('useUser Hook Initial State:', {
-    hasSupabase: !!supabase,
-    hasClerkUserId: !!clerkUserId,
-    clerkUserIdValue: clerkUserId,
-    currentUser: user,
-    isLoading: loading,
-    currentError: error,
-    timestamp: new Date().toISOString()
-  });
-
   useEffect(() => {
     const fetchUser = async () => {
-      console.log('Fetching user data:', {
-        clerkUserId,
-        timestamp: new Date().toISOString()
-      });
-
       if (!clerkUserId) {
-        console.log('No Clerk user ID available, skipping fetch');
         setLoading(false);
         return;
       }
 
       try {
-        console.log('Executing Supabase query...');
         const { data, error: userError } = await supabase
           .from('users')
           .select('*')
           .eq('clerk_user_id', clerkUserId)
           .single();
 
-        console.log('Raw Supabase response:', { data, error: userError });
-
         if (userError) {
-          console.error('Error fetching user:', {
-            code: userError.code,
-            message: userError.message,
-            details: userError.details,
-            hint: userError.hint
-          });
+          console.error('Error fetching user:', userError);
           throw userError;
         }
 
@@ -101,35 +77,24 @@ export function useUser() {
           integration_statuses: data.integration_statuses || defaultIntegrationStatuses,
         };
 
-        console.log('Processed user data:', userData);
+        // Only log on successful user fetch
+        console.log('User data loaded:', {
+          id: userData.id,
+          clerk_user_id: userData.clerk_user_id,
+          email: userData.email
+        });
 
         setUser(userData);
-        console.log('User state updated:', userData);
       } catch (err: any) {
-        console.error('Error in fetchUser:', {
-          error: err,
-          message: err.message,
-          code: err.code,
-          details: err.details,
-          hint: err.hint,
-          stack: err.stack,
-          timestamp: new Date().toISOString()
-        });
+        console.error('Error in fetchUser:', err.message);
         setError(err.message);
       } finally {
         setLoading(false);
-        console.log('Fetch user complete:', {
-          success: !error,
-          hasUser: !!user,
-          timestamp: new Date().toISOString()
-        });
       }
     };
 
     fetchUser();
   }, [clerkUserId, supabase]);
 
-  console.log('=== USE USER HOOK END ===');
-  console.log('Current hook state:', { user, loading, error });
   return { user, loading, error };
 } 

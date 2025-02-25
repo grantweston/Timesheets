@@ -1,3 +1,11 @@
+export interface Client {
+  client_id: string
+  name: string
+  billing_rate: string
+  email: string
+  status: string
+}
+
 export interface TimeBlock {
   // Core fields (matching backend exactly)
   time_block_id: string
@@ -11,6 +19,9 @@ export interface TimeBlock {
   in_scope: boolean
   created_at: string
   updated_at: string | null
+
+  // Join fields
+  client?: Client
 
   // UI-specific fields in a separate interface
   ui?: {
@@ -51,7 +62,7 @@ export function transformDatabaseToUI(dbBlock: TimeBlock): TimeBlock {
   }
 }
 
-export function transformUIToDatabase(uiBlock: TimeBlock): Omit<TimeBlock, 'ui'> {
+export function transformUIToDatabase(uiBlock: TimeBlock): Omit<TimeBlock, 'ui' | 'client'> {
   const {
     time_block_id,
     user_id,

@@ -24,6 +24,7 @@ import {
 import { useTimeBlocks } from "@/app/hooks/use-time-blocks"
 import { useTimeBlockMutations } from "@/app/hooks/use-time-block-mutations"
 import { useUser } from "@/app/hooks/use-user"
+import { supabase } from "@/app/lib/supabase"
 
 // Add app icon mapping
 const appIcons: Record<string, React.ReactNode> = {
@@ -50,18 +51,26 @@ export function TimeGrid() {
   const [view, setView] = React.useState<"day" | "week">("day")
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false)
 
-  const { user } = useUser()
-  const { timeBlocks: dbBlocks, loading, error } = useTimeBlocks(view === 'day' ? 'today' : 'week')
+  const { user, loading: userLoading } = useUser()
+  const { timeBlocks: dbBlocks, loading: blocksLoading, error } = useTimeBlocks(view === 'day' ? 'today' : 'week')
   const { createTimeBlock, updateTimeBlock } = useTimeBlockMutations()
 
   // Convert database blocks to UI format
   const timeBlocks = React.useMemo(() => {
+    console.log('TimeGrid: Processing blocks:', { 
+      userLoading,
+      blocksLoading,
+      hasUser: !!user,
+      dbBlocksLength: dbBlocks?.length || 0,
+      error
+    });
     if (!dbBlocks) return []
     return dbBlocks.map(transformDatabaseToUI)
-  }, [dbBlocks])
+  }, [dbBlocks, user, userLoading, blocksLoading, error])
 
   // Calculate daily summary
   const dailySummary = React.useMemo(() => {
+    console.log('TimeGrid: Calculating daily summary with blocks:', timeBlocks.length);
     return timeBlocks.reduce<DailySummary>(
       (acc, block) => {
         const startDate = new Date(block.start_time)
@@ -98,15 +107,27 @@ export function TimeGrid() {
 
   const handleAddBlock = async () => {
     try {
-      if (!user?.id) throw new Error('No user ID found')
+      if (!user?.user_id) throw new Error('No user ID found')
+
+      // Get the first active client as default
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('status', 'active')
+        .order('name')
+        .limit(1)
+
+      if (!clients?.length) {
+        throw new Error('No active clients found')
+      }
 
       const now = new Date()
       const startTime = new Date(now.setHours(12, 0, 0))
       const endTime = new Date(now.setHours(13, 0, 0))
 
       const newBlock: Partial<TimeBlock> = {
-        user_id: user.id,
-        client_id: 'default', // You'll need to implement proper client selection
+        user_id: user.user_id,
+        client_id: clients[0].client_id,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         time_block_label: "New Time Block",
@@ -120,6 +141,13 @@ export function TimeGrid() {
     } catch (error) {
       console.error('Failed to create time block:', error)
     }
+  }
+
+  // Calculate duration for a time block
+  const getBlockDuration = (block: TimeBlock) => {
+    const startDate = new Date(block.start_time)
+    const endDate = new Date(block.end_time)
+    return (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
   }
 
   const handleDateChange = (direction: "prev" | "next") => {
@@ -144,6 +172,7 @@ export function TimeGrid() {
           "absolute rounded-lg border p-2 transition-all cursor-pointer hover:shadow-md",
           block.ui?.color || categoryColors.admin.bg,
           hoveredBlock === block.time_block_id && "ring-2 ring-primary",
+          !block.is_billable && "opacity-75"
         )}
         style={{
           top: `${top}px`,
@@ -155,16 +184,29 @@ export function TimeGrid() {
         onMouseEnter={() => setHoveredBlock(block.time_block_id)}
         onMouseLeave={() => setHoveredBlock(null)}
       >
-        <div className="font-medium truncate">{block.time_block_label}</div>
-        <div className="text-xs text-muted-foreground">
-          {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
-        </div>
-        {block.ui?.classification?.applications?.map((app) => (
-          <div key={app.name} className="flex items-center gap-1 text-xs text-muted-foreground">
-            {appIcons[app.name] || <Clock className="h-3 w-3" />}
-            <span>{app.name}</span>
+        <div className="flex flex-col h-full">
+          <div className="font-medium truncate">{block.time_block_label}</div>
+          <div className="text-xs text-muted-foreground">
+            {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
           </div>
-        ))}
+          {block.client && (
+            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <span className="truncate">{block.client.name}</span>
+              {block.is_billable && (
+                <>
+                  <span>•</span>
+                  <span>${block.client.billing_rate}/hr</span>
+                </>
+              )}
+            </div>
+          )}
+          {block.ui?.classification?.applications?.map((app) => (
+            <div key={app.name} className="flex items-center gap-1 text-xs text-muted-foreground">
+              {appIcons[app.name] || <Clock className="h-3 w-3" />}
+              <span>{app.name}</span>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -177,10 +219,15 @@ export function TimeGrid() {
     
     sortedBlocks.forEach((block) => {
       // Find blocks that overlap with current block
+      const blockDuration = getBlockDuration(block)
       const overlappingBlocks = processedBlocks.filter(
-        (pb) => 
-          (block.start_time >= pb.block.start_time && block.start_time < pb.block.start_time + pb.block.duration) || // Current block starts during another block
-          (pb.block.start_time >= block.start_time && pb.block.start_time < block.start_time + block.duration) // Another block starts during current block
+        (pb) => {
+          const pbDuration = getBlockDuration(pb.block)
+          return (
+            (block.start_time >= pb.block.start_time && block.start_time < pb.block.end_time) || // Current block starts during another block
+            (pb.block.start_time >= block.start_time && pb.block.start_time < block.end_time) // Another block starts during current block
+          )
+        }
       )
 
       if (overlappingBlocks.length === 0) {
@@ -210,8 +257,12 @@ export function TimeGrid() {
     )
   }
 
-  if (loading) {
-    return <div className="text-center text-muted-foreground">Loading time blocks...</div>
+  if (userLoading || blocksLoading) {
+    return <div className="text-center text-muted-foreground">Loading...</div>
+  }
+
+  if (!user) {
+    return <div className="text-center text-red-500">Please sign in to view your timesheet</div>
   }
 
   if (error) {
@@ -325,8 +376,8 @@ export function TimeGrid() {
                     key={category}
                     className={cn(
                       "px-2 py-1 rounded-md text-xs font-medium",
-                      categoryColors[category as TimeBlock["category"]].bg,
-                      categoryColors[category as TimeBlock["category"]].border,
+                      categoryColors[category].bg,
+                      categoryColors[category].border,
                     )}
                   >
                     {category}: {hours.toFixed(1)}h
