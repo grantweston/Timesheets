@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/dev-cli": "^0.0.10",
     "@clerk/nextjs": "^4.31.6",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "^6.4.0",

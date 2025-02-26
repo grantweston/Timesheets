@@ -12,6 +12,7 @@ interface TableColumn {
 
 export async function POST(req: NextRequest) {
   console.log('🔍 API: create-user route called');
+  console.log('🔍 DEBUG: Request headers:', JSON.stringify(Object.fromEntries([...req.headers.entries()])));
   
   try {
     // Get the Clerk user ID and token
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Get user data from request body
     console.log('🔍 API: Parsing request body');
     const userData = await req.json();
-    console.log('✅ API: Request body parsed:', userData);
+    console.log('✅ API: Request body parsed:', JSON.stringify(userData));
     
     // Create a Supabase client
     console.log('🔍 API: Creating Supabase client with service role key');
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
     
     if (existingUser) {
-      console.log('✅ API: User already exists:', existingUser);
+      console.log('✅ API: User already exists:', JSON.stringify(existingUser));
       
       // Update the user if needed
       if (userData.clerk_sub_id && (!existingUser.clerk_sub_id || existingUser.clerk_sub_id !== userData.clerk_sub_id)) {
@@ -102,12 +103,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: columnsError.message }, { status: 500 });
     }
     
-    console.log('✅ API: Got table columns:', columns);
+    console.log('✅ API: Got table columns:', JSON.stringify(columns));
     
     // Filter the user data to only include columns that exist in the table
     console.log('🔍 API: Filtering user data to match table columns');
     const columnNames = columns.map((col: TableColumn) => col.column_name);
-    console.log('🔍 API: Available column names:', columnNames);
+    console.log('🔍 API: Available column names:', JSON.stringify(columnNames));
     
     const filteredUserData = Object.keys(userData)
       .filter(key => columnNames.includes(key))
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
     // Ensure clerk_user_id is set
     filteredUserData.clerk_user_id = userId;
     
-    console.log('✅ API: Filtered user data:', filteredUserData);
+    console.log('✅ API: Filtered user data:', JSON.stringify(filteredUserData));
     
     // Create the user with a transaction
     console.log('🔍 API: Creating new user with filtered data');
@@ -132,10 +133,24 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error('❌ API: Error creating user:', insertError);
       console.log('❌ API: Error details:', JSON.stringify(insertError));
+      
+      // Additional debugging for insert errors
+      console.log('🔍 DEBUG: Attempting to query users table structure');
+      const { data: tableInfo, error: tableError } = await supabase
+        .from('users')
+        .select('*')
+        .limit(0);
+        
+      if (tableError) {
+        console.error('❌ DEBUG: Error querying users table:', tableError);
+      } else {
+        console.log('✅ DEBUG: Users table exists and is accessible');
+      }
+      
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
     
-    console.log('✅ API: User created successfully:', newUser);
+    console.log('✅ API: User created successfully:', JSON.stringify(newUser));
     return NextResponse.json({ user: newUser });
   } catch (error: any) {
     console.error('❌ API: Unexpected error:', error);
