@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 
 export async function GET(req: NextRequest) {
   const requestId = Math.random().toString(36).substring(2, 10); // Generate a unique ID for this request
@@ -19,6 +19,18 @@ export async function GET(req: NextRequest) {
     }
     
     console.log(`✅ [${requestId}] Got userId: ${userId}`);
+    
+    // Get the Clerk user details to get the email
+    console.log(`🔍 [${requestId}] Fetching Clerk user details`);
+    const user = await currentUser();
+    
+    if (!user) {
+      console.log(`❌ [${requestId}] Could not fetch Clerk user details`);
+      return NextResponse.json({ error: 'Could not fetch user details from Clerk' }, { status: 500 });
+    }
+    
+    const primaryEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId)?.emailAddress;
+    console.log(`✅ [${requestId}] Got Clerk user details: email=${primaryEmail}, name=${user.firstName} ${user.lastName}`);
     
     // Create a Supabase client
     console.log(`🔍 [${requestId}] Creating Supabase client with service role key`);
@@ -47,16 +59,61 @@ export async function GET(req: NextRequest) {
     
     // Query for the user
     console.log(`🔍 [${requestId}] Querying user with clerk_user_id: ${userId}`);
-    const { data: user, error: userError } = await supabase
+    const { data: existingUser, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('clerk_user_id', userId)
       .maybeSingle();
     
-    // If the user exists, return it
-    if (user) {
-      console.log(`✅ [${requestId}] User found: ${JSON.stringify(user)}`);
-      return NextResponse.json({ user });
+    // If the user exists, check if we need to update any information
+    if (existingUser) {
+      console.log(`✅ [${requestId}] User found: ${JSON.stringify(existingUser)}`);
+      
+      // Check if we need to update user information
+      const needsUpdate = (
+        (primaryEmail && existingUser.email !== primaryEmail) ||
+        (user.firstName && existingUser.first_name !== user.firstName) ||
+        (user.lastName && existingUser.last_name !== user.lastName)
+      );
+      
+      if (needsUpdate) {
+        console.log(`🔍 [${requestId}] Updating user information`);
+        
+        // Build update data
+        const updateData: Record<string, any> = {};
+        
+        if (primaryEmail && existingUser.email !== primaryEmail) {
+          updateData.email = primaryEmail;
+        }
+        
+        if (user.firstName && existingUser.first_name !== user.firstName) {
+          updateData.first_name = user.firstName;
+        }
+        
+        if (user.lastName && existingUser.last_name !== user.lastName) {
+          updateData.last_name = user.lastName;
+        }
+        
+        console.log(`🔍 [${requestId}] Update data:`, JSON.stringify(updateData));
+        
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('clerk_user_id', userId)
+          .select()
+          .single();
+          
+        if (updateError) {
+          console.error(`❌ [${requestId}] Error updating user:`, updateError);
+          console.log(`❌ [${requestId}] Error details: ${JSON.stringify(updateError)}`);
+          // Continue with the existing user even if update fails
+        } else {
+          console.log(`✅ [${requestId}] User updated successfully`);
+          return NextResponse.json({ user: updatedUser });
+        }
+      }
+      
+      return NextResponse.json({ user: existingUser });
     }
     
     // If there's an error but it's not just that the user doesn't exist, return the error
@@ -69,9 +126,13 @@ export async function GET(req: NextRequest) {
     // User doesn't exist, so create one
     console.log(`🔍 [${requestId}] User not found, creating new user`);
     
-    // Create minimal user data
+    // Create user data including email and name
     const userData = {
       clerk_user_id: userId,
+      email: primaryEmail || null,
+      first_name: user.firstName || null,
+      last_name: user.lastName || null,
+      display_name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
       created_at: new Date().toISOString(),
     };
     
