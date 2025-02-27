@@ -466,7 +466,8 @@ export default function DesktopPage() {
                             {pairingCode}
                           </AlertTitle>
                           <AlertDescription className="text-center text-muted-foreground">
-                            Enter this code in your desktop app to connect it to your account
+                            Enter this code in your desktop app to connect it to
+                            your account
                           </AlertDescription>
                         </Alert>
                       )}
