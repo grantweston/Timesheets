@@ -46,8 +46,29 @@ export default function ProfilePage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
-      // TODO: Save profile data to your backend
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulated API call
+      
+      // Save profile data to backend by calling the create-user API
+      const response = await fetch('/api/auth/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...values,
+          display_name: values.name, // Map name to display_name for Supabase
+          default_rate: parseFloat(values.rate), // Convert rate to number
+          business_type: values.type,
+          industry: values.industry
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+      
+      const userData = await response.json();
+      console.log('✅ User created successfully:', userData);
       
       toast({
         title: "Profile saved",
@@ -61,6 +82,7 @@ export default function ProfilePage() {
       const event = new CustomEvent('onboardingNext', { detail: values })
       window.dispatchEvent(event)
     } catch (error) {
+      console.error('❌ Error creating user:', error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",

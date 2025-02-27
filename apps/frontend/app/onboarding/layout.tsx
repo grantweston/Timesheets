@@ -61,6 +61,26 @@ export default function OnboardingLayout({
 
   const markOnboardingComplete = async () => {
     try {
+      // First, ensure the user exists in Supabase
+      const createUserResponse = await fetch('/api/auth/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Send minimal data if we don't have profile data
+          display_name: user?.fullName || 'New User',
+          email: user?.primaryEmailAddress?.emailAddress
+        }),
+      });
+      
+      if (!createUserResponse.ok) {
+        console.error('❌ Failed to create/verify user in Supabase:', await createUserResponse.text());
+      } else {
+        console.log('✅ User exists in Supabase');
+      }
+
+      // Then update Clerk metadata
       const response = await fetch('/api/complete-onboarding', {
         method: 'POST'
       });
@@ -69,7 +89,7 @@ export default function OnboardingLayout({
         throw new Error('Failed to mark onboarding as complete');
       }
     } catch (error) {
-      console.error('Error updating onboarding status:', error)
+      console.error("Error updating onboarding status:", error)
     }
   }
 

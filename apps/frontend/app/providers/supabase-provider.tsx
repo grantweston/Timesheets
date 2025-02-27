@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 
 interface SupabaseContext {
   supabase: SupabaseClient;
@@ -12,6 +12,8 @@ const SupabaseContext = createContext<SupabaseContext | undefined>(undefined);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const { getToken } = useAuth();
+  const { user, isLoaded, isSignedIn } = useUser();
+  const [userChecked, setUserChecked] = useState(false);
   const [supabase] = useState(() => {
     console.log('🔍 Creating Supabase client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     return createClient(
@@ -37,6 +39,40 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     // Store the original fetch for restoration later
     const originalFetch = window.fetch;
     let fetchModified = false;
+
+    // Create a user record in Supabase when user logs in with Clerk
+    const ensureUserExists = async () => {
+      if (!isLoaded || !isSignedIn || !user || userChecked) return;
+      
+      try {
+        console.log('🔍 Checking if user exists in Supabase for:', user.id);
+        
+        const response = await fetch('/api/auth/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            display_name: user.fullName || user.username || 'New User',
+            email: user.primaryEmailAddress?.emailAddress,
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error('❌ Error creating/verifying user in Supabase:', 
+            await response.text());
+        } else {
+          const data = await response.json();
+          console.log('✅ User exists in Supabase:', data.user ? 'Created' : 'Already exists');
+        }
+      } catch (error) {
+        console.error('❌ Error in ensureUserExists:', error);
+      } finally {
+        if (isActive) {
+          setUserChecked(true);
+        }
+      }
+    };
 
     const setupSupabaseAuth = async () => {
       try {
@@ -109,6 +145,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    ensureUserExists();
     setupSupabaseAuth();
 
     return () => {
@@ -118,7 +155,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         window.fetch = originalFetch;
       }
     };
-  }, [getToken, supabase]);
+  }, [getToken, supabase, user, isLoaded, isSignedIn, userChecked]);
 
   return (
     <SupabaseContext.Provider value={{ supabase }}>
