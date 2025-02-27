@@ -10,7 +10,7 @@ export function DashboardNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="hidden w-[220px] flex-col md:flex lg:w-[240px]">
+    <nav className="flex flex-col gap-2 p-4">
       <div className="space-y-1">
         {[
           {
@@ -29,12 +29,12 @@ export function DashboardNav() {
             label: "Work in Progress",
           },
           {
-            href: "/invoices",
+            href: "/dashboard/invoices",
             icon: FileText,
             label: "Invoices",
           },
           {
-            href: "/settings",
+            href: "/dashboard/settings",
             icon: Settings,
             label: "Settings",
           },
@@ -43,14 +43,21 @@ export function DashboardNav() {
             key={item.href}
             variant="ghost"
             className={cn(
-              "w-full justify-start transition-all hover:scale-105",
-              pathname === item.href && "bg-primary/10 text-primary hover:bg-primary/20",
+              "w-full justify-start transition-all hover:bg-violet-50 dark:hover:bg-violet-900/10",
+              pathname === item.href && "bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/30",
             )}
             asChild
           >
-            <Link href={item.href}>
-              <item.icon className="mr-2 h-4 w-4" />
-              {item.label}
+            <Link href={item.href} className="flex items-center gap-2">
+              <item.icon className={cn(
+                "h-4 w-4",
+                pathname === item.href ? "text-violet-600 dark:text-violet-400" : "text-muted-foreground"
+              )} />
+              <span className={cn(
+                pathname === item.href ? "font-medium" : "text-muted-foreground"
+              )}>
+                {item.label}
+              </span>
             </Link>
           </Button>
         ))}

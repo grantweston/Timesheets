@@ -227,9 +227,12 @@ export function ChatInterface() {
             placeholder="Type your message..."
             className="flex-1"
           />
-          <Button type="submit" className="transition-all hover:scale-105" disabled={!input.trim()}>
-            <Send className="h-4 w-4 mr-2" />
-            Send
+          <Button
+            type="submit"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25 transition-all hover:scale-105"
+            disabled={!input.trim()}
+          >
+            <Send className="h-4 w-4" />
           </Button>
         </form>
       </div>

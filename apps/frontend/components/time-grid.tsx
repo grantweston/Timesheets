@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { TimeBlockDialog } from "./time-block-dialog"
 import type { TimeBlock } from "@/types/time-block"
 import { Button } from "./ui/button"
-import { Plus, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Clock, Chrome, Slack, Mail, Code, FileCode, Monitor } from "lucide-react"
+import { Plus, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Clock, Chrome, Slack, Mail, Code, FileCode, Monitor, Minus } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
 import { DayPicker } from "./ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
@@ -390,12 +390,20 @@ export function TimeGrid() {
             </Select>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => handleDateChange("prev")}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => handleDateChange("prev")}
+                className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="min-w-[240px] justify-start text-left font-normal">
+                  <Button 
+                    variant="outline" 
+                    className="min-w-[240px] justify-start text-left font-normal hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+                  >
                     <div className="flex flex-col">
                       <span className="font-medium">{format(selectedDate, "EEEE")}</span>
                       <span className="text-xs text-muted-foreground">{format(selectedDate, "MMMM d, yyyy")}</span>
@@ -414,22 +422,39 @@ export function TimeGrid() {
                   />
                 </PopoverContent>
               </Popover>
-              <Button variant="outline" size="icon" onClick={() => handleDateChange("next")}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => handleDateChange("next")}
+                className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.5))}>
-              <ZoomOut className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.5))}
+              className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+            >
+              <Minus className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setZoomLevel((z) => Math.min(2, z + 0.5))}>
-              <ZoomIn className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setZoomLevel((z) => Math.min(2, z + 0.5))}
+              className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
+            >
+              <Plus className="h-4 w-4" />
             </Button>
-            <Button onClick={handleAddBlock}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Block
+            <Button 
+              onClick={handleAddBlock}
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
+            >
+              Add Time Block
             </Button>
           </div>
         </div>

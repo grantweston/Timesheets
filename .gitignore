@@ -58,3 +58,9 @@ Thumbs.db
 
 # Optional: Ignore compiled output (if using TypeScript, etc.)
 *.tsbuildinfo
+.next/
+
+node_modules/
+.next/
+*.dylib
+*.node
