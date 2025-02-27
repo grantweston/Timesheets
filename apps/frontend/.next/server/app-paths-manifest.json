@@ -1,11 +1,5 @@
 {
-  "/api/auth/stripe/status/route": "app/api/auth/stripe/status/route.js",
-  "/api/auth/quickbooks/status/route": "app/api/auth/quickbooks/status/route.js",
-  "/page": "app/page.js",
-  "/onboarding/profile/page": "app/onboarding/profile/page.js",
-  "/onboarding/billing/page": "app/onboarding/billing/page.js",
-  "/onboarding/integrations/page": "app/onboarding/integrations/page.js",
   "/onboarding/non-billable/page": "app/onboarding/non-billable/page.js",
-  "/onboarding/engagement-letters/page": "app/onboarding/engagement-letters/page.js",
+  "/onboarding/profile/page": "app/onboarding/profile/page.js",
   "/onboarding/desktop/page": "app/onboarding/desktop/page.js"
 }

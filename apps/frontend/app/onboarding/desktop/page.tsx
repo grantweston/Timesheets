@@ -252,26 +252,86 @@ export default function DesktopPage() {
 
     console.log('User validated, proceeding with code generation');
     try {
-      const testUserId = 'fe20476b-c6fc-4949-b37d-ecaeaad40514';
-      console.log('Making API request with user_id:', testUserId);
-      const response = await fetch(
-        'https://zdaugjexoekzsjxrelee.supabase.co/functions/v1/generate-link-code',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            user_id: testUserId,
-          }),
+      console.log('Making API request with user_id:', TEST_USER_ID);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Try to get auth token if the method exists
+      try {
+        // @ts-ignore - Ignoring type check as we're doing a runtime check
+        if (typeof user.getToken === 'function') {
+          // @ts-ignore
+          const token = await user.getToken();
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
         }
-      );
+      } catch (e) {
+        console.log('Could not get auth token:', e);
+      }
+
+      // Add fallback URL if primary fails
+      const primaryUrl =
+        'https://zdaugjexoekzsjxrelee.supabase.co/functions/v1/generate-link-code';
+      const fallbackUrl =
+        process.env.NEXT_PUBLIC_GENERATE_LINK_CODE_URL || primaryUrl;
+
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      // Try with primary URL
+      let response;
+      try {
+        console.log('Attempting with primary URL:', primaryUrl);
+        response = await fetch(primaryUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            user_id: TEST_USER_ID,
+          }),
+          signal: controller.signal,
+        });
+      } catch (primaryError) {
+        console.error('Primary URL fetch failed:', primaryError);
+
+        // Try fallback URL if different from primary
+        if (fallbackUrl !== primaryUrl) {
+          console.log('Attempting with fallback URL:', fallbackUrl);
+          response = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              user_id: TEST_USER_ID,
+            }),
+          });
+        } else {
+          throw primaryError;
+        }
+      }
+
+      clearTimeout(timeoutId);
 
       console.log('API response status:', response.status);
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.error('Error response data:', errorData);
-        throw new Error(errorData?.error || 'Failed to generate code');
+        console.error('Full response:', response);
+        console.error('Status:', response.status, response.statusText);
+
+        // Try to read response text if json parsing failed
+        if (!errorData) {
+          const text = await response
+            .text()
+            .catch(() => 'Could not read response text');
+          console.error('Response text:', text);
+        }
+
+        throw new Error(
+          errorData?.error || `Failed to generate code (${response.status})`
+        );
       }
 
       const data = await response.json();
