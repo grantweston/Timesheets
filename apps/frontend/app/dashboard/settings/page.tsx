@@ -1,262 +1,281 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs"
-import { Card } from "@/app/components/ui/card"
-import { Label } from "@/app/components/ui/label"
-import { Input } from "@/app/components/ui/input"
-import { Button } from "@/app/components/ui/button"
-import { Switch } from "@/app/components/ui/switch"
-import { Separator } from "@/app/components/ui/separator"
-import { Badge } from "@/app/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Bell, CreditCard, Globe, Lock, Mail, User, Zap } from "lucide-react"
+'use client';
+
+import { useUser } from "@/app/hooks/use-user";
+import { Card } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import Image from "next/image";
+import { ExternalLink } from "lucide-react";
+
+// Define the proper types for integration statuses
+interface IntegrationToken {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: string;
+  [key: string]: any;
+}
+
+interface Integration {
+  connected: boolean;
+  token?: IntegrationToken | null;
+}
+
+interface IntegrationStatuses {
+  outlook?: Integration;
+  gmail?: Integration;
+  docusign?: Integration;
+  stripe?: Integration;
+  quickbooks?: Integration;
+  [key: string]: Integration | undefined;
+}
+
+// Extended User type that matches what we actually get from the backend
+interface ExtendedUser {
+  id?: string;
+  clerk_user_id: string;
+  email: string | null;
+  display_name: string | null;
+  timezone?: string | null;
+  integration_statuses?: IntegrationStatuses;
+  is_desktop_setup?: boolean;
+  created_at?: string | null;
+  [key: string]: any; // Allow for any other properties
+}
+
+function IntegrationStatusBadge({ connected }: { connected: boolean }) {
+  return (
+    <span className={`px-2 py-1 text-sm rounded-full ${
+      connected 
+        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+    }`}>
+      {connected ? 'Connected' : 'Not Connected'}
+    </span>
+  );
+}
+
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string | boolean | null | undefined }) {
+  if (value === undefined || value === null) return null;
+  return (
+    <div className="flex items-center py-3 border-b last:border-0 border-gray-100 dark:border-gray-800">
+      <span className="text-sm text-gray-500 dark:text-gray-400 w-1/3">{label}</span>
+      <span className="text-sm flex-1">{String(value)}</span>
+    </div>
+  );
+}
+
+function IntegrationRow({ 
+  name, 
+  description, 
+  connected,
+  logoSrc
+}: { 
+  name: string; 
+  description: string;
+  connected: boolean;
+  logoSrc: string;
+}) {
+  return (
+    <div className="p-4 border rounded-lg border-gray-100 dark:border-gray-800 hover:border-violet-200 dark:hover:border-violet-800 transition-all duration-200">
+      <div className="flex items-center gap-4">
+        <div className="relative h-12 w-12 flex-shrink-0">
+          <Image
+            src={logoSrc}
+            alt={`${name} logo`}
+            fill
+            className="object-contain"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-medium">{name}</span>
+            <IntegrationStatusBadge connected={connected} />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button 
+          variant={connected ? "outline" : "default"} 
+          size="sm"
+          className="gap-1"
+        >
+          {connected ? 'Manage Connection' : 'Connect'} 
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
+  const { user: originalUser, loading, error } = useUser();
+  // Cast the user to our extended type safely
+  const user = originalUser as unknown as ExtendedUser | null;
+  
+  console.log('🔍 SettingsPage render state:', {
+    hasUser: !!user,
+    loading,
+    hasError: !!error,
+    userData: user ? {
+      clerk_user_id: user.clerk_user_id,
+      display_name: user.display_name,
+      integration_statuses: user.integration_statuses
+    } : null
+  });
+
+  if (loading) {
+    return (
+      <main className="flex w-full flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground">Loading your settings...</p>
+        </div>
+        <Card className="p-6">
+          <div className="h-32 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+          </div>
+        </Card>
+      </main>
+    );
+  }
+
+  if (error) {
+    console.error('❌ SettingsPage error:', error);
+    return (
+      <main className="flex w-full flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-red-500">Error loading settings: {error}</p>
+        </div>
+        <Card className="p-6">
+          <div className="text-center text-red-500">
+            Failed to load settings. Please try refreshing the page.
+          </div>
+        </Card>
+      </main>
+    );
+  }
+
+  if (!user) {
+    console.warn('⚠️ SettingsPage: No user data found');
+    return (
+      <main className="flex w-full flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground">No user data found</p>
+        </div>
+        <Card className="p-6">
+          <div className="text-center text-muted-foreground">
+            Could not find your user settings. Please try signing out and back in.
+          </div>
+        </Card>
+      </main>
+    );
+  }
+
+  console.log('✅ SettingsPage: User data received, rendering settings');
+  
+  // Ensure integration_statuses exists to prevent errors
+  const integrationStatuses = user.integration_statuses || {
+    docusign: { connected: false },
+    quickbooks: { connected: false },
+    stripe: { connected: false },
+    gmail: { connected: false },
+    outlook: { connected: false }
+  };
+
+  // Integration data with logos and descriptions
+  const integrations = [
+    {
+      id: "docusign",
+      name: "DocuSign",
+      description: "Connect to automatically generate and send engagement letters for signature",
+      logoSrc: "/logos/DocuSign-Symbol.png",
+      connected: integrationStatuses.docusign?.connected || false
+    },
+    {
+      id: "quickbooks",
+      name: "QuickBooks",
+      description: "Sync your time entries and invoices with QuickBooks Online",
+      logoSrc: "/logos/quickbooks.webp",
+      connected: integrationStatuses.quickbooks?.connected || false
+    },
+    {
+      id: "stripe",
+      name: "Stripe",
+      description: "Process payments and manage subscriptions",
+      logoSrc: "/logos/498440.webp",
+      connected: integrationStatuses.stripe?.connected || false
+    },
+    {
+      id: "gmail",
+      name: "Gmail",
+      description: "Connect Gmail for email and calendar tracking",
+      logoSrc: "/logos/gmail.png",
+      connected: integrationStatuses.gmail?.connected || false
+    },
+    {
+      id: "outlook",
+      name: "Outlook",
+      description: "Connect Outlook for email and calendar tracking",
+      logoSrc: "/logos/microsoft.png",
+      connected: integrationStatuses.outlook?.connected || false
+    }
+  ];
+
   return (
     <main className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
+        <p className="text-muted-foreground">Manage your account settings and integrations.</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList className="bg-violet-50/50 dark:bg-violet-900/10">
-          <TabsTrigger 
-            value="profile"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Profile
-          </TabsTrigger>
-          <TabsTrigger 
-            value="notifications"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger 
-            value="billing"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Billing
-          </TabsTrigger>
-          <TabsTrigger 
-            value="integrations"
-            className="data-[state=active]:bg-white dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-300"
-          >
-            Integrations
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Profile Settings */}
-        <TabsContent value="profile">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white text-2xl font-semibold">
-                  JD
-                </div>
-                <div>
-                  <Button 
-                    variant="outline" 
-                    className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
-                  >
-                    Change Photo
-                  </Button>
-                </div>
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input 
-                    id="name" 
-                    defaultValue="John Doe" 
-                    className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    defaultValue="john@example.com" 
-                    className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="pst">
-                    <SelectTrigger 
-                      id="timezone"
-                      className="border-zinc-200 dark:border-zinc-800 focus-visible:ring-violet-500"
-                    >
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pst">Pacific Time (PST)</SelectItem>
-                      <SelectItem value="mst">Mountain Time (MST)</SelectItem>
-                      <SelectItem value="cst">Central Time (CST)</SelectItem>
-                      <SelectItem value="est">Eastern Time (EST)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      <div className="grid gap-8 grid-cols-1">
+        <Card className="p-6">
+          <SettingsSection title="Profile Information">
+            <div className="space-y-1">
+              <InfoRow label="Display Name" value={user.display_name} />
+              <InfoRow label="Email" value={user.email} />
+              <InfoRow label="Timezone" value={user.timezone || 'Not set'} />
+              <InfoRow label="Desktop App" value={user.is_desktop_setup ? 'Installed' : 'Not installed'} />
+              <InfoRow label="Member Since" value={
+                user.created_at 
+                  ? new Date(user.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })
+                  : 'Unknown'
+              } />
             </div>
+          </SettingsSection>
+        </Card>
 
-            <div className="flex justify-end">
-              <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25">
-                Save Changes
-              </Button>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Notifications Settings */}
-        <TabsContent value="notifications">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive email updates about your activity.</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Notification Preferences</h3>
-                <div className="grid gap-4">
-                  {[
-                    { icon: Bell, label: "Time tracking reminders" },
-                    { icon: Mail, label: "Weekly summary" },
-                    { icon: CreditCard, label: "Billing alerts" },
-                    { icon: User, label: "Team mentions" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                        <span>{item.label}</span>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Billing Settings */}
-        <TabsContent value="billing">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Current Plan</h3>
-                  <p className="text-sm text-muted-foreground">You are currently on the Pro plan.</p>
-                </div>
-                <Badge className="bg-gradient-to-r from-violet-600 to-indigo-600">Pro Plan</Badge>
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Payment Method</h3>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-md border border-zinc-200 dark:border-zinc-800 p-4 flex items-center gap-4">
-                    <CreditCard className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-                    <div>
-                      <p className="font-medium">•••• •••• •••• 4242</p>
-                      <p className="text-sm text-muted-foreground">Expires 12/24</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300"
-                  >
-                    Update
-                  </Button>
-                </div>
-              </div>
-
-              <Separator className="bg-zinc-200 dark:bg-zinc-800" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Billing History</h3>
-                <div className="space-y-2">
-                  {[
-                    { date: "Feb 1, 2024", amount: "$29.00", status: "Paid" },
-                    { date: "Jan 1, 2024", amount: "$29.00", status: "Paid" },
-                  ].map((invoice) => (
-                    <div key={invoice.date} className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="font-medium">{invoice.date}</p>
-                        <p className="text-sm text-muted-foreground">{invoice.amount}</p>
-                      </div>
-                      <Badge variant="secondary" className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300">
-                        {invoice.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Integrations Settings */}
-        <TabsContent value="integrations">
-          <Card className="p-6 space-y-6">
-            <div className="space-y-4">
-              {[
-                {
-                  icon: Globe,
-                  name: "Jira",
-                  description: "Link your Jira projects for automatic time tracking.",
-                  connected: true,
-                },
-                {
-                  icon: Lock,
-                  name: "GitHub",
-                  description: "Connect your repositories for development tracking.",
-                  connected: true,
-                },
-                {
-                  icon: Zap,
-                  name: "Slack",
-                  description: "Get notifications and track time directly from Slack.",
-                  connected: false,
-                },
-              ].map((integration) => (
-                <div key={integration.name} className="flex items-start justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full bg-violet-100 dark:bg-violet-900/20 p-2">
-                      <integration.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{integration.name}</h3>
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant={integration.connected ? "outline" : "default"}
-                    className={integration.connected ? 
-                      "hover:bg-violet-50 dark:hover:bg-violet-900/10 hover:text-violet-600 dark:hover:text-violet-300" :
-                      "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
-                    }
-                  >
-                    {integration.connected ? "Manage" : "Connect"}
-                  </Button>
-                </div>
+        <Card className="p-6">
+          <SettingsSection title="Connected Services">
+            <div className="mt-4 grid gap-4 grid-cols-1">
+              {integrations.map((integration) => (
+                <IntegrationRow 
+                  key={integration.id}
+                  name={integration.name}
+                  description={integration.description}
+                  connected={integration.connected}
+                  logoSrc={integration.logoSrc}
+                />
               ))}
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </SettingsSection>
+        </Card>
+      </div>
     </main>
-  )
+  );
 } 

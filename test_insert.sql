@@ -1,0 +1,1 @@
+INSERT INTO timesheets (user_id, date, start_time, end_time, description, project) VALUES ('00000000-0000-0000-0000-000000000000', CURRENT_DATE, '09:00', '17:00', 'Test entry', 'Test Project') RETURNING *;

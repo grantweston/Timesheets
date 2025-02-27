@@ -1,3 +1,10 @@
 {
-  "/page": "app/page.js"
+  "/api/auth/create-user/route": "app/api/auth/create-user/route.js",
+  "/api/user/route": "app/api/user/route.js",
+  "/api/complete-onboarding/route": "app/api/complete-onboarding/route.js",
+  "/api/time-blocks/route": "app/api/time-blocks/route.js",
+  "/page": "app/page.js",
+  "/dashboard/overview/page": "app/dashboard/overview/page.js",
+  "/onboarding/desktop/page": "app/onboarding/desktop/page.js",
+  "/dashboard/timesheet/page": "app/dashboard/timesheet/page.js"
 }

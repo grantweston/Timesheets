@@ -11,11 +11,13 @@ import { toast } from "sonner"
 
 interface Invoice {
   id: string
-  client: string
-  amount: number
-  hours: number
+  user_id: string
+  organization_id?: string
+  client_name: string
+  total_amount: number
   status: "draft" | "sent" | "paid"
-  date: string
+  created_at: string
+  updated_at: string
 }
 
 interface InvoiceListProps {
@@ -59,8 +61,8 @@ export function InvoiceList({ type }: InvoiceListProps) {
 
       // Calculate new total
       const newTotal = filteredInvoices
-        .filter((invoice) => newSelection.includes(invoice.client))
-        .reduce((sum, invoice) => sum + invoice.amount, 0)
+        .filter((invoice) => newSelection.includes(invoice.client_name))
+        .reduce((sum, invoice) => sum + invoice.total_amount, 0)
 
       setTotalAmount(newTotal)
       return newSelection
@@ -73,7 +75,7 @@ export function InvoiceList({ type }: InvoiceListProps) {
       
       // For each selected client
       for (const client of selectedClients) {
-        const invoice = filteredInvoices.find(inv => inv.client === client);
+        const invoice = filteredInvoices.find(inv => inv.client_name === client);
         if (!invoice) continue;
 
         const customerData = customerMapping[client as CustomerName];
@@ -88,8 +90,8 @@ export function InvoiceList({ type }: InvoiceListProps) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            amount: Math.round(invoice.amount * 100), // Convert to cents
-            description: `Invoice for ${invoice.hours} hours of work - ${invoice.date}`,
+            amount: Math.round(invoice.total_amount * 100), // Convert to cents
+            description: `Invoice for ${invoice.total_amount} hours of work - ${invoice.created_at}`,
             customer: customerData.stripeId,
             quickbooksRealmId: process.env.NEXT_PUBLIC_QUICKBOOKS_REALM_ID,
             quickbooksAccessToken: 'YOUR_ACCESS_TOKEN' // You'll need to implement OAuth flow
@@ -137,7 +139,6 @@ export function InvoiceList({ type }: InvoiceListProps) {
             )}
             <TableHead>Invoice</TableHead>
             <TableHead>Client</TableHead>
-            <TableHead>Hours</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
@@ -150,22 +151,21 @@ export function InvoiceList({ type }: InvoiceListProps) {
               key={invoice.id}
               className={cn(
                 "animate-fade-in transition-colors hover:bg-violet-50/50 dark:hover:bg-violet-900/10",
-                selectedClients.includes(invoice.client) && "bg-violet-50 dark:bg-violet-900/20",
+                selectedClients.includes(invoice.client_name) && "bg-violet-50 dark:bg-violet-900/20",
               )}
             >
               {type === "current" && (
                 <TableCell>
                   <Checkbox
-                    checked={selectedClients.includes(invoice.client)}
-                    onCheckedChange={(checked) => handleClientSelect(invoice.client, checked as boolean)}
+                    checked={selectedClients.includes(invoice.client_name)}
+                    onCheckedChange={(checked) => handleClientSelect(invoice.client_name, checked as boolean)}
                     className="border-violet-200 dark:border-violet-800 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                   />
                 </TableCell>
               )}
               <TableCell>{invoice.id}</TableCell>
-              <TableCell>{invoice.client}</TableCell>
-              <TableCell>{invoice.hours}</TableCell>
-              <TableCell>${invoice.amount.toFixed(2)}</TableCell>
+              <TableCell>{invoice.client_name}</TableCell>
+              <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
               <TableCell>
                 <Badge
                   variant={invoice.status === "paid" ? "default" : invoice.status === "sent" ? "secondary" : "outline"}
@@ -178,7 +178,7 @@ export function InvoiceList({ type }: InvoiceListProps) {
                   {invoice.status}
                 </Badge>
               </TableCell>
-              <TableCell>{invoice.date}</TableCell>
+              <TableCell>{invoice.created_at}</TableCell>
               <TableCell className="text-right">
                 <Button 
                   variant="ghost" 

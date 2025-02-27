@@ -11,7 +11,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables');
@@ -42,7 +42,7 @@ async function seedTestData() {
     .insert({
       email: 'grantmweston@gmail.com',
       display_name: 'Grant Weston',
-      clerk_user_id: 'user_2ZFrZHxDxGXyxKvBaVoqDpKnI6H', // This will be replaced with actual Clerk ID
+      clerk_user_id: 'user_2tExBCPQtiCFy1EMr1EJ76rZGgK',
       organization_id: org.id,
       is_desktop_setup: true,
     })
