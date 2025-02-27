@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Device Pairing</title>
+  <style>
+    /* Add your styles */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Enter Pairing Code</h2>
+    <input type="text" id="pairingCode" maxlength="6" pattern="\d{6}" />
+    <button id="verifyBtn">Verify</button>
+    <p id="status"></p>
+  </div>
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    const codeInput = document.getElementById('pairingCode');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const status = document.getElementById('status');
+
+    verifyBtn.addEventListener('click', async () => {
+      const code = codeInput.value;
+      if (code.length !== 6) {
+        status.textContent = 'Please enter a 6-digit code';
+        return;
+      }
+
+      status.textContent = 'Verifying...';
+      const result = await ipcRenderer.invoke('verify-pairing-code', code);
+      
+      if (result.success) {
+        status.textContent = 'Successfully paired!';
+        // Close pairing window after success
+        setTimeout(() => window.close(), 2000);
+      } else {
+        status.textContent = 'Invalid code. Please try again.';
+      }
+    });
+  </script>
+</body>
+</html> 
