@@ -9,7 +9,7 @@ export interface Client {
 export interface TimeBlock {
   // Core fields (matching backend exactly)
   time_block_id: string
-  user_id: string
+  clerk_user_id: string
   client_id: string
   start_time: string
   end_time: string
@@ -65,7 +65,7 @@ export function transformDatabaseToUI(dbBlock: TimeBlock): TimeBlock {
 export function transformUIToDatabase(uiBlock: TimeBlock): Omit<TimeBlock, 'ui' | 'client'> {
   const {
     time_block_id,
-    user_id,
+    clerk_user_id,
     client_id,
     start_time,
     end_time,
@@ -79,7 +79,7 @@ export function transformUIToDatabase(uiBlock: TimeBlock): Omit<TimeBlock, 'ui' 
 
   return {
     time_block_id,
-    user_id,
+    clerk_user_id,
     client_id,
     start_time,
     end_time,
